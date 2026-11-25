@@ -81,6 +81,7 @@ def main(mode="dry", validate=False):
     k = kraken.get()
     sc = scanner.Scanner(k)
     stop = threading.Event()
+    print("scanner seeded with 1-minute history for %d pairs" % sc.seed())
     sc.tick()
     if mode == "live" and kraken.live_enabled():
         shachar.boot_sync(k, shachar.load(mode, 0.0), sc.tk, mode)

@@ -125,6 +125,12 @@ class Kraken:
         r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
         return [float(x[4]) for x in [v for kk, v in r.items() if kk != "last"][0]]
 
+    def ohlc_rows(self, pair, interval=1):
+        """[(candle start time, close)] for the finished candles (the last one, still forming, is dropped)."""
+        r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
+        rows = [v for kk, v in r.items() if kk != "last"][0]
+        return [(float(x[0]), float(x[4])) for x in rows[:-1]]
+
     def ohlc(self, pair, interval=60, n=48):
         r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
         rows = [v for k, v in r.items() if k != "last"][0][-n:]
