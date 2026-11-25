@@ -82,6 +82,7 @@ def market(k, tk):
     return out
 
 
+MIN_HOLD_H = 3          # brain cannot sell a fresh position (guard exits are exempt)
 COOLDOWN_H = 6          # per-coin cooldown after a sell
 MIN_TAKE_PCT = 3.0      # fee gate: ~1.6% round trip plus margin
 
@@ -109,6 +110,9 @@ def execute(k, s, b, d, tk, mode, validate):
         ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy")
     else:
         q = b["pos"].get(p, 0.0) * max(0.0, min(1.0, float(d.get("fraction", 1))))
+        g0 = b.get("guards", {}).get(p)
+        if g0 and g0.get("t") and not d.get("reason", "").startswith("guard:") and time.time() - g0["t"] < MIN_HOLD_H * 3600:
+            return "refused: minimum hold %dh not reached (guard stop and take-profit still protect)" % MIN_HOLD_H
         if q > b["pos"].get(p, 0.0) + 1e-12:
             return "refused: cannot sell more than held (no shorting)"
         if q < info["ordermin"]:
