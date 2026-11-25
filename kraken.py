@@ -48,6 +48,8 @@ class Kraken:
         if d and os.path.exists(d + "/username") and os.path.exists(d + "/password"):
             self.key = open(d + "/username").read().strip()
             self.secret = open(d + "/password").read().strip()
+        if os.environ.get("KRAKEN_KEY") and os.environ.get("KRAKEN_SECRET"):
+            self.key, self.secret = os.environ["KRAKEN_KEY"].strip(), os.environ["KRAKEN_SECRET"].strip()
         self.info = {}
         self.keymap = {}
 
