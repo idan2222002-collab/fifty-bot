@@ -41,3 +41,17 @@ for i in range(30):
     shachar.execute(FK(), s, b, {"action": "sell", "pair": "XBTUSDC", "fraction": 5}, tk, "dry", False)
     assert b["cash"] >= 0 and all(v >= 0 for v in b["pos"].values())
 print("ALL SAFETY TESTS PASSED, final cash %.2f" % b["cash"])
+
+# fee gate, cooldown, halt flag
+b2 = {"name": "t2", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
+s2 = {"bots": {"t2": b2}}
+r = shachar.execute(FK(), s2, b2, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 2}, tk, "dry", False)
+assert r.startswith("refused: fee gate"), r
+b2["cool"] = {"XBTUSDC": __import__("time").time()}
+r = shachar.execute(FK(), s2, b2, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
+assert "cooldown" in r, r
+import os
+os.environ["SHACHAR_HALT"] = "1"
+r = shachar.execute(FK(), s2, b2, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
+assert "halt" in r, r
+print("FEE GATE / COOLDOWN / HALT TESTS PASSED")
