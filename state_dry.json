@@ -1,0 +1,32 @@
+{
+ "mode": "dry",
+ "bots": {
+  "shachar": {
+   "name": "shachar",
+   "alive": true,
+   "cash": 27.8710028,
+   "start": 47.87,
+   "pos": {
+    "XBTUSDC": 0.00033915
+   },
+   "parent": null,
+   "children": [],
+   "born": 1795625898.3282545,
+   "fees": 0.15872219999999998,
+   "last_action": 1795625899.9880223,
+   "idle_strikes": 0,
+   "trades": 1,
+   "guards": {
+    "XBTUSDC": {
+     "entry": 58500.0,
+     "stop": 56745.0,
+     "take": 61425.0,
+     "high": 59182.98,
+     "stop_txid": null,
+     "t": 1795625899.9880204
+    }
+   }
+  }
+ },
+ "log": []
+}
