@@ -14,3 +14,4 @@
 - 2026-11-25 [shachar] Holding when short‑term move is <3% prevents unnecessary round‑trip fees; idle strike not imminent
 - 2026-11-25 [shachar] Avoid trading assets with high bid‑ask spreads; even a 3% price move can be wiped out by spread and fees.
 - 2026-11-25 [shachar] Do not enter trades on marginal momentum; wait for a stronger signal that comfortably exceeds fee and spread costs.
+- 2026-11-25 [shachar] Avoid trades where the expected price move is close to the fee cost; wait for a clear >3% momentum signal before committing capital.
