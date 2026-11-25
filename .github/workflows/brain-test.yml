@@ -19,3 +19,8 @@ jobs:
           python3 shachar.py cycle dry
           tail -n 2 journal.jsonl
           rm -f /tmp/llmkey
+      - name: Raw API check
+        env:
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -s -i -m 40 https://models.github.ai/inference/chat/completions -H "Authorization: Bearer $GH_MODELS_TOKEN" -H 'Content-Type: application/json' -d '{"model":"openai/gpt-4.1-mini","max_tokens":30,"messages":[{"role":"user","content":"say ok"}]}' | head -c 600
