@@ -11,6 +11,7 @@ import kraken, scanner, shachar
 TRAIL_START, TRAIL_PCT = 0.04, 0.02        # after +4% the stop trails 2% under the high, so a trailing exit nets above the 1.6% fees
 HARD_EQUITY_STOP = 0.4                     # equity below 40% of start: sell everything to USDC
 BRAIN_EVERY = int(os.environ.get("BRAIN_EVERY", "300"))
+MAX_HOLD_H = 48                            # time stop
 TICK = float(os.environ.get("TICK", "1"))
 
 
@@ -43,6 +44,8 @@ def protect(k, sc, mode, validate):
                     why = "hard equity stop (equity %.2f < %d%% of start)" % (eq, HARD_EQUITY_STOP * 100)
                 elif px <= g["stop"]:
                     why = "stop hit (%.4f <= %.4f)" % (px, g["stop"])
+                elif g.get("t") and time.time() - g["t"] > MAX_HOLD_H * 3600:
+                    why = "time stop (held more than %dh)" % MAX_HOLD_H
                 elif px >= g["take"]:
                     why = "take-profit hit (%.4f >= %.4f)" % (px, g["take"])
                 if why:
