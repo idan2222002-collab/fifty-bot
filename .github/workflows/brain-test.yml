@@ -1,0 +1,21 @@
+name: brain-test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  models: read
+jobs:
+  dry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dry cycle (no orders, no Kraken key)
+        env:
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          umask 077
+          printf '%s' "$GH_MODELS_TOKEN" > /tmp/llmkey
+          export LLM_KEY_FILE=/tmp/llmkey
+          python3 shachar.py cycle dry
+          tail -n 2 journal.jsonl
+          rm -f /tmp/llmkey
