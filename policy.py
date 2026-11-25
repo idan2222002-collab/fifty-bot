@@ -2,7 +2,13 @@
 Nothing here is advisory: a failed check means the action does not happen."""
 import json, time, pathlib
 
-LOG = pathlib.Path(__file__).with_name("actions.jsonl")
+HERE = pathlib.Path(__file__).parent
+
+
+def logfile(mode):
+    """Dry and live have separate action logs, so dry-run trades never count toward live caps."""
+    return HERE / ("actions_%s.jsonl" % mode)
+
 BANNED = {"gambling", "loans", "leverage", "margin", "futures", "scam", "spam", "impersonation",
           "unlicensed_finance", "scraping_against_tos", "fake_reviews", "adult", "weapons", "pump_and_dump"}
 ALLOWED_PAYEES = {"kraken"}      # owner-approved. Anything else needs owner approval first.
@@ -13,63 +19,61 @@ MAX_TRADES_PER_DAY = 8           # per bot, stops fee-burning busywork
 PAYEE_FOR_TRADE = "kraken"
 
 
-def _today_trades(bot_name):
-    if not LOG.exists():
+def _count(bot_name, mode, since=None, day=None):
+    f = logfile(mode)
+    if not f.exists():
         return 0
-    day = time.strftime("%F")
     n = 0
-    for line in LOG.read_text().splitlines():
+    for line in f.read_text().splitlines():
         try:
             r = json.loads(line)
         except Exception:
             continue
-        if r.get("bot") == bot_name and r.get("ok") and r.get("category") == "trade" and r.get("day") == day:
+        if r.get("bot") == bot_name and r.get("filled") and (day is None or r.get("day") == day) and (since is None or r.get("t", 0) > since):
             n += 1
     return n
 
 
-def _week_trades(bot_name):
-    if not LOG.exists():
-        return 0
-    n, cut = 0, time.time() - 7 * 86400
-    for line in LOG.read_text().splitlines():
-        try:
-            r = json.loads(line)
-        except Exception:
-            continue
-        if r.get("bot") == bot_name and r.get("ok") and r.get("category") == "trade" and r.get("t", 0) > cut:
-            n += 1
-    return n
+def _append(mode, rec):
+    with logfile(mode).open("a") as f:
+        f.write(json.dumps(rec) + "\n")
 
 
-def check(bot, amount, category, payee, purpose, side="buy", owner_approved=False):
-    """Return (ok, reason). Logs every attempt, allowed or not. amount is in USDC."""
+def record(bot_name, mode, amount, side):
+    """Log a FILL. Only fills count toward the daily and weekly caps (attempts and refusals do not)."""
+    _append(mode, {"t": time.time(), "day": time.strftime("%F"), "bot": bot_name, "amount": round(amount, 4),
+                   "side": side, "filled": True})
+
+
+def check(bot, amount, category, payee, purpose, side="buy", owner_approved=False, mode="dry", internal=False):
+    """Return (ok, reason). Logs every attempt (not counted). amount is in USDC. internal=True is set by code only
+    (the guard); text from the LLM can never set it."""
     reason = None
-    if not bot["alive"]:
-        reason = "bot is dead"
-    elif category in BANNED:
+    if category in BANNED:
         reason = "banned category"
     elif category == "trade":
         if payee != PAYEE_FOR_TRADE:
             reason = "trades only on the approved venue"
+        elif side == "buy" and not bot["alive"]:
+            reason = "bot is dead"
         elif side == "buy" and amount > bot["cash"] * MAX_TRADE_FRAC:
             reason = "buy exceeds 90% of the bot's own cash"
-        elif side == "sell" and purpose.startswith("guard:"):
-            pass  # protective exit by the 1-second guard is never blocked by the daily cap
-        elif _today_trades(bot["name"]) >= MAX_TRADES_PER_DAY:
+        elif side == "sell" and internal:
+            pass  # protective exit by the guard is never blocked by the caps
+        elif _count(bot["name"], mode, day=time.strftime("%F")) >= MAX_TRADES_PER_DAY:
             reason = "daily trade cap reached"
-        elif _week_trades(bot["name"]) >= MAX_TRADES_PER_WEEK:
+        elif _count(bot["name"], mode, since=time.time() - 7 * 86400) >= MAX_TRADES_PER_WEEK:
             reason = "weekly trade cap reached"
     else:
-        if amount > bot["cash"]:
+        if not bot["alive"]:
+            reason = "bot is dead"
+        elif amount > bot["cash"]:
             reason = "exceeds the bot's own balance"
         elif amount > bot["cash"] * MAX_SINGLE_SPEND_FRAC:
             reason = "over single-action cap"
         elif payee not in ALLOWED_PAYEES and not owner_approved:
             reason = "payee not on owner-approved list"
-    ok = reason is None
-    with LOG.open("a") as f:
-        f.write(json.dumps({"t": time.time(), "day": time.strftime("%F"), "bot": bot["name"], "amount": round(amount, 4),
-                            "category": category, "side": side, "payee": payee, "purpose": purpose[:200],
-                            "ok": ok, "reason": reason}) + "\n")
-    return ok, reason
+    _append(mode, {"t": time.time(), "day": time.strftime("%F"), "bot": bot["name"], "amount": round(amount, 4),
+                   "category": category, "side": side, "payee": payee, "purpose": purpose[:200],
+                   "ok": reason is None, "reason": reason, "filled": False})
+    return reason is None, reason
