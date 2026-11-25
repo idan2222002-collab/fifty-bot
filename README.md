@@ -1,23 +1,26 @@
 # fifty-bot (brain: Shachar)
 
-See SHACHAR.md for the brief, survival rule and activity rule.
-
 Separate experiment. Not connected to any other project, repo, key or account.
+See SHACHAR.md for the brief, survival rule and reproduction logic. POLICY.md has the hard limits.
 
-A bot gets a small stake (about 50 USD, about 180 NIS). If it hits zero it dies.
-When its equity reaches 2x, it funds a child bot with half of the profit above
-its start (never the original stake). Trading is the first strategy, but the bot may pursue any legal idea within POLICY.md.
-All actions go through `policy.check()`.
-
-Legal note: the account belongs to the human owner (KYC). "Dying" and "child
-bots" are ledger rules in code. Gains are taxable income for the owner.
-
-## Phases
-- Phase 0 (now): paper mode, no money, no keys. `python bot.py tick`
-- Phase 1: owner opens Bit2C, deposits the stake himself, creates a trade-only
-  API key (no withdrawal). Key goes in a vault, never in this repo.
-- Hard rules: max loss = deposit, no withdrawals by the bot, spot only.
+## Files
+- shachar.py: the cycle. Reads Kraken prices, news, lessons; asks the brain; acts through policy.check().
+- brain.py: LLM brain (OpenAI-compatible endpoint, key from a file outside the repo). Falls back to a plain heuristic if no key.
+- kraken.py: Kraken connector (spot). Live orders are OFF unless SHACHAR_LIVE=YES_IDAN_APPROVED; otherwise orders are only validated.
+- news.py: free headlines, fear and greed index, trending coins. Treated as untrusted text.
+- policy.py: hard limits (trade only on Kraken, max 90% of cash per buy, 6 trades per day, banned categories, owner-approved payees).
+- bot.py, state: legacy Phase 0 paper engine (ILS), kept for reference. Not used.
 
 ## Run
-`python bot.py tick` then `python bot.py status`. State is `state.json`.
-The workflow in `.github/workflows/tick.yml` runs a tick every 30 minutes.
+- `python shachar.py cycle dry` simulated fills at live Kraken prices (no key needed)
+- `python shachar.py cycle dry --validate` also sends each order to Kraken with validate=true (nothing is placed)
+- `python shachar.py cycle live` real orders, only with the live token set by the owner's go-ahead
+- `python shachar.py status dry|live`
+
+## Survival and reproduction
+Dead when equity < 3 USDC (no Kraken order possible) or after 3 idle strikes (24h without a trade each).
+At 2x start with enough free cash, a child is funded with half the profit above start (max 3 children each).
+A child is a ledger allocation inside the same Kraken account.
+
+Legal note: the account belongs to the human owner (KYC). Gains are taxable income for him.
+Keys live only in the vault, never in this repo. Real money moves only after the owner says go.
