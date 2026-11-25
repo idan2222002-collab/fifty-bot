@@ -21,6 +21,7 @@ INFLIGHT = set()
 LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
 DRY_SIZE_CAP = 0.9
 MIN_RR = 1.5              # take_pct / stop_pct must be at least this
+MAX_RISK_PCT = float(os.environ.get("SHACHAR_MAX_RISK_PCT", "2"))   # one stop-out (fees included) costs at most this % of equity
 PAPER_PENDING = False     # paper mode: True = a maker entry waits for the market to trade through it (guard.py turns
                           # it on, because only the always-on loop can watch the order). False = instant fill.
 
@@ -234,11 +235,34 @@ def liquid(p, tk):
     return True, ""
 
 
-def backtest_setup(closes, kind, stop=0.03, take=0.05, hold=48, fee_pct=1.6):
-    """Simple replay on hourly closes (about 30 days): every time this setup appeared, enter at the close, exit at
-    -stop, +take or after `hold` hours, subtract round-trip fees. Closes only (no highs/lows), so it is rough.
-    Returns {n, win_pct, avg_net_pct} or None when there is too little history."""
-    c = closes
+def _candles(rows):
+    """Hourly closes (plain numbers) or candles ({o, h, l, c}). A close alone becomes a flat candle."""
+    return [r if isinstance(r, dict) else {"o": r, "h": r, "l": r, "c": r} for r in rows]
+
+
+def sim_trade(rows, i, stop=0.03, take=0.05, hold=48, fee_pct=0.0):
+    """Enter at the close of candle i and walk forward on each candle's high and low. Conservative on purpose:
+    a candle that touches both levels counts as the stop, and a candle that opens below the stop exits at its open
+    (a gap fills worse than the stop price). Returns (net % after fee_pct, index of the exit candle)."""
+    px = rows[i]["c"]
+    last = min(len(rows) - 1, i + hold)
+    for j in range(i + 1, last + 1):
+        r = rows[j]
+        if r["l"] <= px * (1 - stop):
+            return (min(r["o"], px * (1 - stop)) / px - 1) * 100 - fee_pct, j
+        if r["h"] >= px * (1 + take):
+            return take * 100 - fee_pct, j
+    return (rows[last]["c"] / px - 1) * 100 - fee_pct, last
+
+
+def backtest_setup(closes, kind, stop=0.03, take=0.05, hold=48, fee_pct=None):
+    """Replay on about 30 days of hourly data: every time this setup appeared, enter at the close, exit at -stop,
+    +take or after `hold` hours, subtract round-trip fees (maker entry + taker exit, 1.2% by default).
+    `closes` may be plain closes or candles; with candles the stop and take are checked on highs and lows, so a wick
+    that would have stopped the trade is not missed. Returns {n, win_pct, avg_net_pct} or None with too little history."""
+    rows = _candles(closes)
+    c = [r["c"] for r in rows]
+    fee_pct = (FEE + MAKER_FEE) * 100 if fee_pct is None else fee_pct
     nets, i = [], 24
     while i < len(c) - 2:
         c6, c24, c1 = c[i] / c[i - 6] - 1, c[i] / c[i - 24] - 1, c[i] / c[i - 1] - 1
@@ -248,19 +272,20 @@ def backtest_setup(closes, kind, stop=0.03, take=0.05, hold=48, fee_pct=1.6):
         if not hit:
             i += 1
             continue
-        px, r, j = c[i], 0.0, i + 1
-        while j < min(len(c), i + 1 + hold):
-            r = c[j] / px - 1
-            if r <= -stop:
-                r = -stop; break
-            if r >= take:
-                r = take; break
-            j += 1
-        nets.append(r * 100 - fee_pct)
+        net, j = sim_trade(rows, i, stop, take, hold, fee_pct)
+        nets.append(net)
         i = j + 1
     if len(nets) < 3:
         return None
     return {"n": len(nets), "win_pct": round(100 * sum(1 for x in nets if x > 0) / len(nets)), "avg_net_pct": round(sum(nets) / len(nets), 2)}
+
+
+def replay_rows(k, pair):
+    """Candles when the connector has them (highs and lows matter), else plain closes."""
+    try:
+        return k.ohlc_candles(pair)
+    except AttributeError:
+        return k.ohlc_full(pair)
 
 
 def btc_alert(mk, scan):
@@ -352,6 +377,12 @@ def _plan(k, b, d, tk, mode, internal, risk):
         stop = min(10.0, max(1.5, num(d.get("stop_pct"), 3.0)))
         cap = LIVE_SIZE_CAP if mode == "live" else DRY_SIZE_CAP
         usdc = min(usdc, b["cash"] * cap)
+        # survival sizing: if this trade hits its stop, the loss (stop distance + round-trip fees) is at most
+        # MAX_RISK_PCT of equity. The brain still chooses the coin, the stop and the target; a wider stop simply
+        # buys a smaller position. Twenty stop-outs in a row then cost about a third of the stake, not all of it.
+        risk_cap = equity(b, tk) * MAX_RISK_PCT / (stop + (FEE + MAKER_FEE) * 100)
+        if usdc > risk_cap:
+            usdc = risk_cap
         vol = kraken.floor_to(usdc * (1 - FEE) / tk[p]["ask"], info["lot_decimals"])
         if usdc < max(info["costmin"], 1) or vol < info["ordermin"]:
             raise Refuse("refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"]))
@@ -686,7 +717,7 @@ def cycle(mode, validate=False, scan=None, k=None):
             ctx["usdc_peg"] = {"warning": "unavailable"}
         for o in ctx["opportunities"][:3]:
             try:
-                o["backtest_30d"] = backtest_setup(k.ohlc_full(o["pair"]), o["setup"]) or "too few cases"
+                o["backtest_30d"] = backtest_setup(replay_rows(k, o["pair"]), o["setup"]) or "too few cases"
             except Exception:
                 pass
         ctx["order_books"] = {}

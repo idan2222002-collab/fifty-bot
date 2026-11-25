@@ -5,7 +5,7 @@ Slow layer: every BRAIN_EVERY seconds it runs one brain cycle (LLM) in a backgro
   python guard.py dry --validate      also validates orders with Kraken (nothing is placed)
   python guard.py live                refuses to place real orders unless SHACHAR_LIVE=YES_IDAN_APPROVED
 Env: BRAIN_EVERY (seconds, default 300), TICK (seconds, default 2), MAX_TICKS (for tests)."""
-import sys, os, time, threading, json, traceback
+import sys, os, time, threading, json, traceback, signal
 import kraken, scanner, shachar
 
 TRAIL_START, TRAIL_PCT = 0.04, 0.02        # after +4% the stop trails 2% under the high, so a trailing exit nets above the 1.6% fees
@@ -68,6 +68,23 @@ def protect(k, sc, mode, validate):
     return acts
 
 
+def shutdown(mode, wait_s=120):
+    """Clean stop. The host ends every run with a kill, and until now that could land in the middle of an order:
+    a maker entry left resting on Kraken with nobody watching it, or a fill that was never written down. Here the
+    resting entry is cancelled at once (kraken.ABORT), an order in flight gets time to finish and be booked, and the
+    state is written one last time (in paper mode it was otherwise up to 5 minutes old).
+    Returns True when nothing was left in flight."""
+    kraken.ABORT.set()
+    end = time.time() + wait_s
+    while shachar.INFLIGHT and time.time() < end:
+        time.sleep(0.2)
+    try:
+        shachar.save(mode)
+    except Exception as e:
+        print("final save failed", str(e)[:120])
+    return not shachar.INFLIGHT
+
+
 def brain_loop(sc, mode, validate, stop):
     while not stop.is_set():
         try:
@@ -81,6 +98,11 @@ def main(mode="dry", validate=False):
     k = kraken.get()
     sc = scanner.Scanner(k)
     stop = threading.Event()
+    for sig in (signal.SIGTERM, signal.SIGINT):       # `kill` from the workflow, Ctrl-C by hand
+        try:
+            signal.signal(sig, lambda *_: stop.set())
+        except Exception:
+            pass
     print("scanner seeded with 1-minute history for %d pairs" % sc.seed())
     sc.tick()
     if mode == "live" and kraken.live_enabled():
@@ -91,7 +113,7 @@ def main(mode="dry", validate=False):
         threading.Thread(target=brain_loop, args=(sc, mode, validate, stop), daemon=True).start()
     n, errs, last_save = 0, 0, time.time()
     max_ticks = int(os.environ.get("MAX_TICKS", "0"))
-    while True:
+    while not stop.is_set():
         t0 = time.time()
         try:
             sc.tick()
@@ -117,7 +139,9 @@ def main(mode="dry", validate=False):
         n += 1
         if max_ticks and n >= max_ticks:
             stop.set(); break
-        time.sleep(max(0.0, TICK - (time.time() - t0)))
+        stop.wait(max(0.0, TICK - (time.time() - t0)))
+    clean = shutdown(mode)
+    print("guard stopped cleanly" if clean else "guard stopped with an order still in flight")
 
 
 if __name__ == "__main__":
