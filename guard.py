@@ -81,9 +81,12 @@ def main(mode="dry", validate=False):
     k = kraken.get()
     sc = scanner.Scanner(k)
     stop = threading.Event()
+    print("scanner seeded with 1-minute history for %d pairs" % sc.seed())
     sc.tick()
     if mode == "live" and kraken.live_enabled():
         shachar.boot_sync(k, shachar.load(mode, 0.0), sc.tk, mode)
+    if mode != "live":
+        shachar.PAPER_PENDING = True          # this loop watches paper entries, so they can fill honestly
     if os.environ.get("NO_BRAIN") != "1":
         threading.Thread(target=brain_loop, args=(sc, mode, validate, stop), daemon=True).start()
     n, errs, last_save = 0, 0, time.time()
@@ -92,6 +95,9 @@ def main(mode="dry", validate=False):
         t0 = time.time()
         try:
             sc.tick()
+            if mode != "live":
+                for a in shachar.fill_pending(sc.tk, mode):
+                    print("PAPER", a)
             for a in protect(k, sc, mode, validate):
                 print("GUARD", a)
             if n % 10 == 0:
