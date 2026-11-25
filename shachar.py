@@ -89,6 +89,8 @@ def market(k, tk):
     return out
 
 
+BRAIN_MIN_BUSY_S = 2400   # with a setup or an open position: one brain call per 40 min
+BRAIN_MIN_IDLE_S = 10800  # nothing to do: one per 3h
 MAKER_FEE = 0.005       # post-only entry fee used in the paper ledger (pessimistic vs Kraken maker tier)
 MIN_HOLD_H = 3          # brain cannot sell a fresh position (guard exits are exempt)
 COOLDOWN_H = 6          # per-coin cooldown after a sell
@@ -344,11 +346,18 @@ def cycle(mode, validate=False, scan=None):
                 pass
         ctx["cooldown_pairs"] = [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]
         ctx["not_liquid"] = [p for p in mk if p in tk and not liquid(p, tk)[0]]
-        d = brain.decide(ctx)            # slow (LLM); the guard thread keeps running meanwhile
+        busy = bool(ctx["opportunities"]) or bool(b["pos"]) or ctx["btc_alert"] != "none"
+        wait_s = BRAIN_MIN_BUSY_S if busy else BRAIN_MIN_IDLE_S
+        if time.time() - b.get("last_brain", 0) < wait_s:
+            d = {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}
+        else:
+            d = brain.decide(ctx)        # slow (LLM); the guard thread keeps running meanwhile
         with LOCK:
             s = load(mode, start); b = s["bots"][b["name"]]
             if not b["alive"]:
                 continue
+            if d.get("source") != "gate":
+                b["last_brain"] = time.time()
             res = execute(k, s, b, d, tk, mode, validate)
         if d.get("lesson"):
             with (HERE / "lessons.md").open("a") as f:
