@@ -20,3 +20,5 @@
 - 2026-11-25 [shachar] Avoid trading when expected price move is close to or below the combined spread and fee cost; better to wait for a clearer setup than incur a loss.
 - 2026-11-25 [shachar] Avoid entering trades when expected move is close to or below fee+spread costs; wait for a clear >3% momentum with low spread before committing cash.
 - 2026-11-25 [shachar] Wait for clear >3% short‑term momentum on a liquid pair before committing cash
+- 2026-11-25 [shachar] BTC shows modest 3% 6h gain, indicating bullish momentum; LTC has a stronger 5.5% 6h rise, low spread and good liquidity, offering a clear >3% upside potential that exceeds fee cost. Buying modest LTC position with 3% stop and 5% target balances risk and fee considerations.
+- 2026-11-25 [shachar] LTC shows strong 6h momentum (>5%) and tight spread, making a >5% target profitable after ~1.6% round‑trip fees
