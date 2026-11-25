@@ -39,7 +39,7 @@ class Scanner:
         out = {}
         for p, v in self.tk.items():
             row = {"price": v["last"], "spread_pct": round((v["ask"] / v["bid"] - 1) * 100, 3),
-                   "chg_24h_pct": round((v["last"] / v["open"] - 1) * 100, 2), "vol24_base": round(v["vol24"], 1)}
+                   "chg_utc_day_pct": round((v["last"] / v["open"] - 1) * 100, 2), "vol24_base": round(v["vol24"], 1)}
             flags = []
             for name, secs in WINDOWS.items():
                 c = self._chg(p, secs)
