@@ -37,6 +37,27 @@ def equity(b, tk):
     return b["cash"] + sum(q * tk[p]["bid"] for p, q in b["pos"].items())
 
 
+ASSET = {"XXBT": "XBT", "XETH": "ETH", "XXRP": "XRP", "XXDG": "DOGE", "XLTC": "LTC", "ZUSD": "USD"}
+RECON_TOL = 0.03
+
+
+def reconcile(k, s, tk):
+    """Live only: compare the real Kraken account with the ledger. A gap over 3% writes a HALT file
+    (no new buys; guard exits still run) and logs it. Returns (ok, real_equity, ledger_equity)."""
+    bal = k.balance()
+    real = bal.get("USDC", 0.0)
+    for p in tk:
+        base = p[:-4]
+        qty = sum(v for a, v in bal.items() if ASSET.get(a, a) == base)
+        real += qty * tk[p]["bid"]
+    led = sum(equity(b, tk) for b in s["bots"].values() if b["alive"])
+    ok = led <= 0 or abs(real - led) / led <= RECON_TOL
+    jlog({"event": "reconcile", "ok": ok, "kraken_equity": round(real, 2), "ledger_equity": round(led, 2)})
+    if not ok:
+        (HERE / "HALT").write_text("reconcile mismatch kraken %.2f vs ledger %.2f at %s\n" % (real, led, time.strftime("%F %T")))
+    return ok, real, led
+
+
 def jlog(rec):
     rec["t"] = time.strftime("%F %T")
     with (HERE / "journal.jsonl").open("a") as f:
@@ -150,6 +171,12 @@ def cycle(mode, validate=False, scan=None):
         start = DRY_START
     s = load(mode, start)
     tk = k.tickers()
+    if mode == "live" and kraken.live_enabled():
+        try:
+            reconcile(k, s, tk)
+        except Exception as e:
+            jlog({"event": "reconcile_error", "err": str(e)[:150]})
+            (HERE / "HALT").write_text("reconcile failed: %s\n" % str(e)[:100])
     mk = market(k, tk)
     nw = {"headlines": news.headlines(6), "fear_greed": news.fear_greed(), "trending": news.trending()}
     for name in list(s["bots"]):
