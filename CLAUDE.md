@@ -2,6 +2,10 @@
 
 Approved by Idan, 2026-11-26 (updated 00:35). These rules are binding.
 
+## Start of every session
+- Read `docs/INSTINCT_TO_CLAUDE.md` first (current state, what is merged, what is open, what Instinct needs from you). Then read the open PRs and their comments, and the `claude/...` branches.
+- Instinct writes review feedback as PR comments. You may answer in PR comments or in `docs/CLAUDE_TO_INSTINCT.md`.
+
 ## Workflow
 - Claude works on branches named `claude/...` and opens Pull Requests. Claude never pushes to `main` alone.
 - Claude never touches the `state` branch.
