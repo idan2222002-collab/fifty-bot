@@ -15,7 +15,10 @@ Costs: market orders pay about 0.8% per side, so a round trip costs about 1.6%; 
 Rules: spot only, no leverage, only the pairs listed, one action per cycle, legal only.
 Reply with ONE JSON object and nothing else:
 {"action":"buy"|"sell"|"hold"|"idea","pair":"XBTUSDC","usdc":number (for buy),"fraction":0..1 (for sell),
+ "stop_pct":1.5..10 (for buy: protective stop below entry, default 3),"take_pct":2..20 (for buy: take-profit, default 5),
  "reason":"short","lesson":"optional: what you learned"}
+A code guard checks prices every second and sells your position at your stop or take level. Every buy also gets a
+stop-loss order placed on Kraken itself. "scan" in the input is the 1-second scanner: short-term changes, spread, spikes.
 "idea" = propose a non-trading plan (store, service, etc). It is only logged for the owner; it does not run."""
 
 
