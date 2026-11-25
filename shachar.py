@@ -5,7 +5,7 @@
   python shachar.py status [dry|live]
 Survival: equity < DEATH_FLOOR = dead. 24h without a trade = idle strike, 3 strikes = dead.
 Reproduction: equity >= 2x start and enough free cash = child funded with half of the profit."""
-import json, sys, time, pathlib
+import json, sys, time, pathlib, threading
 import kraken, news, brain, policy
 
 HERE = pathlib.Path(__file__).parent
@@ -14,6 +14,7 @@ DEATH_FLOOR = 3.0         # USDC. Below this no Kraken order is possible, so the
 IDLE_HOURS, MAX_IDLE = 24, 3
 SPAWN_AT, CHILD_STAKE, MIN_CHILD, MAX_CHILDREN = 2.0, 0.5, 6.0, 3
 DRY_START = 47.87
+LOCK = threading.RLock()      # guard thread and brain thread share the state file
 
 
 def sfile(mode):
@@ -94,20 +95,37 @@ def execute(k, s, b, d, tk, mode, validate):
         qty = vol
         cost = vol * (tk[p]["ask"] if act == "buy" else tk[p]["bid"])
         fee = cost * FEE
+    gd = b.setdefault("guards", {})
     if act == "buy":
         b["cash"] -= cost + fee
         b["pos"][p] = b["pos"].get(p, 0.0) + qty
+        entry = cost / qty
+        sp = min(10.0, max(1.5, float(d.get("stop_pct", 3)))) / 100
+        tp = min(20.0, max(2.0, float(d.get("take_pct", 5)))) / 100
+        gd[p] = {"entry": entry, "stop": entry * (1 - sp), "take": entry * (1 + tp), "high": entry, "stop_txid": None}
+        if mode == "live" or validate:
+            try:
+                so = k.stop_order(p, b["pos"][p], gd[p]["stop"])
+                gd[p]["stop_txid"] = so["txid"]; jlog({"bot": b["name"], "stop_order": so["descr"], "live": so["live"]})
+            except Exception as e:
+                jlog({"bot": b["name"], "stop_order_error": str(e)[:150]})
     else:
+        g = gd.get(p)
+        if g and g.get("stop_txid") and mode == "live":
+            try: k.cancel(g["stop_txid"])
+            except Exception as e: jlog({"bot": b["name"], "cancel_error": str(e)[:150]})
         b["cash"] += cost - fee
         b["pos"][p] = b["pos"].get(p, 0.0) - qty
         if b["pos"][p] * tk[p]["bid"] < 1:
-            b["pos"].pop(p)
+            b["pos"].pop(p); gd.pop(p, None)
+        elif g:
+            g["stop_txid"] = None
     b["fees"] += fee; b["trades"] += 1
     b["last_action"] = time.time(); b["idle_strikes"] = 0
     return "%s %s %.6f @ ~%.4f (fee %.3f)" % (act, p, qty, cost / qty, fee)
 
 
-def cycle(mode, validate=False):
+def cycle(mode, validate=False, scan=None):
     k = kraken.Kraken()
     if mode == "live":
         if not kraken.live_enabled():
@@ -119,7 +137,9 @@ def cycle(mode, validate=False):
     tk = k.tickers()
     mk = market(k, tk)
     nw = {"headlines": news.headlines(6), "fear_greed": news.fear_greed(), "trending": news.trending()}
-    for b in list(s["bots"].values()):
+    for name in list(s["bots"]):
+        with LOCK:
+            s = load(mode, start); b = s["bots"][name]
         if not b["alive"]:
             continue
         eq = equity(b, tk)
@@ -132,7 +152,11 @@ def cycle(mode, validate=False):
             b["alive"] = False; b["pos"] = {}; b["cash"] = 0.0
             s["log"].append("%s DIED %s" % (b["name"], time.strftime("%F %T")))
             jlog({"bot": b["name"], "event": "died", "equity": round(eq, 2)})
+            with LOCK:
+                sfile(mode).write_text(json.dumps(s, indent=1))
             continue
+        with LOCK:
+            sfile(mode).write_text(json.dumps(s, indent=1))
         profit = eq - b["start"]
         want_child = eq >= b["start"] * SPAWN_AT and len(b["children"]) < MAX_CHILDREN
         ctx = {"time": time.strftime("%F %T"), "market": mk, "news": nw, "lessons": lessons_tail(),
@@ -141,8 +165,14 @@ def cycle(mode, validate=False):
                       "idle_strikes": b["idle_strikes"], "hours_since_last_trade": round((time.time() - b["last_action"]) / 3600, 1),
                       "trades_total": b["trades"], "death_floor": DEATH_FLOOR,
                       "reproduction": "ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)"}}
-        d = brain.decide(ctx)
-        res = execute(k, s, b, d, tk, mode, validate)
+        if scan:
+            ctx["scan"] = scan
+        d = brain.decide(ctx)            # slow (LLM); the guard thread keeps running meanwhile
+        with LOCK:
+            s = load(mode, start); b = s["bots"][b["name"]]
+            if not b["alive"]:
+                continue
+            res = execute(k, s, b, d, tk, mode, validate)
         if d.get("lesson"):
             with (HERE / "lessons.md").open("a") as f:
                 f.write("- %s [%s] %s\n" % (time.strftime("%F"), b["name"], str(d["lesson"])[:300]))
@@ -158,8 +188,11 @@ def cycle(mode, validate=False):
             s["bots"][cn] = newbot(cn, stake, b["name"])
             s["log"].append("%s spawned %s with %.2f USDC" % (b["name"], cn, stake))
             jlog({"bot": b["name"], "event": "spawned", "child": cn, "stake": round(stake, 2)})
-    s["log"] = s["log"][-200:]
-    sfile(mode).write_text(json.dumps(s, indent=1))
+        with LOCK:
+            s["log"] = s["log"][-200:]
+            sfile(mode).write_text(json.dumps(s, indent=1))
+    with LOCK:
+        s = load(mode, start)
     status(mode, s, tk)
 
 
