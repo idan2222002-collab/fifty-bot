@@ -1,4 +1,6 @@
-# fifty-bot
+# fifty-bot (brain: Shachar)
+
+See SHACHAR.md for the brief, survival rule and activity rule.
 
 Separate experiment. Not connected to any other project, repo, key or account.
 
