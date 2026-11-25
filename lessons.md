@@ -26,3 +26,5 @@
 - 2026-11-25 [shachar] LTC shows >6% 6‑hour gain with low spread, giving a clear >3% upside after fees; a modest position with 3% stop and 5% target fits risk limits.
 - 2026-11-25 [shachar] LTC 6h gain >4% with low spread, meets >3% take target after fees; buying modest position with 3% stop, 5% target.
 - 2026-11-25 [shachar] LTC short‑term momentum can provide a fee‑positive edge; size modestly to keep cash reserve
+- 2026-11-25 [shachar] Use clear short‑term momentum with a fee‑positive edge and keep cash reserve for future opportunities.
+- 2026-11-25 [shachar] LTC shows >6% 6h gain with tight spread, giving a fee‑positive edge for a modest position
