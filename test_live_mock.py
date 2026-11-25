@@ -168,7 +168,7 @@ print("timeout after AddOrder OK")
 
 # 7. validation: bad LLM numbers never reach the exchange
 k, ex = mk(); s, b = bot()
-for bad in ({"stop_pct": "abc"}, {"usdc": "nan"}, {"take_pct": None}, {"take_pct": 4, "stop_pct": 5}, {"usdc": -5}):
+for bad in ({"stop_pct": "abc"}, {"usdc": "nan"}, {"take_pct": None}, {"usdc": -5}):
     r = shachar.execute(k, s, b, dict(BUY, **bad), TK, "live", False)
     assert r.startswith("refused"), (bad, r)
 assert not ex.orders
@@ -282,6 +282,28 @@ shachar.INFLIGHT.add(("shachar", "XBTUSDC"))
 assert guard.shutdown("live", wait_s=0.3) is False   # it does not hang forever on a stuck order
 shachar.INFLIGHT.clear(); kraken.ABORT.clear()
 print("shutdown waits and saves OK")
+
+# 17. free mind: a poor reward/risk ratio is the brain's call. It trades, with a warning the brain will read.
+#     (owner's decision 2026-11-26; SHACHAR_RR_GATE=1 restores the refusal)
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+lf = policy.logfile("live")
+if lf.exists(): lf.unlink()
+WEAK = dict(BUY, take_pct=4, stop_pct=5)
+r = shachar.execute(k, s, b, dict(WEAK), TK, "live", False)
+assert r.startswith("buy") and "warning: reward/risk 0.80 is below 1.5" in r and "must win more than 69%" in r, r
+assert b["pos"] and [o for o in ex.orders.values() if o["otype"] == "stop-loss" and o["status"] == "open"]   # still protected
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert r.startswith("buy") and "warning" not in r, r                 # 5/3 = 1.67: no warning
+os.environ["SHACHAR_RR_GATE"] = "1"
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+r = shachar.execute(k, s, b, dict(WEAK), TK, "live", False)
+os.environ.pop("SHACHAR_RR_GATE")
+assert r.startswith("refused") and not ex.orders and not b["pos"], r
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+r = shachar.execute(k, s, b, dict(WEAK, take_pct=2.5, stop_pct=1.5), TK, "live", False)
+assert r.startswith("refused") and "fee gate" in r and not ex.orders, r     # the fee gate itself is untouched
+print("reward/risk is a warning, not a refusal OK")
 
 # 9. dry fills never count toward live caps
 policy.record("shachar", "dry", 10, "buy")

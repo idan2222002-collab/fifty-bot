@@ -20,7 +20,8 @@ LOCK = threading.RLock()
 INFLIGHT = set()
 LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
 DRY_SIZE_CAP = 0.9
-MIN_RR = 1.5              # take_pct / stop_pct must be at least this
+MIN_RR = 1.5              # take_pct / stop_pct below this is flagged. A WARNING, not a refusal: which trade is good is
+                          # the brain's call (owner's decision, 2026-11-26). SHACHAR_RR_GATE=1 makes it a refusal again.
 MAX_RISK_PCT = float(os.environ.get("SHACHAR_MAX_RISK_PCT", "2"))   # one stop-out (fees included) costs at most this % of equity
 PAPER_PENDING = False     # paper mode: True = a maker entry waits for the market to trade through it (guard.py turns
                           # it on, because only the always-on loop can watch the order). False = instant fill.
@@ -392,8 +393,13 @@ def _plan(k, b, d, tk, mode, internal, risk):
             raise Refuse("refused: %s is in cooldown after its last sell" % p)
         if take < MIN_TAKE_PCT:
             raise Refuse("refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT)
+        warn = None
         if take / stop < MIN_RR:
-            raise Refuse("refused: reward/risk %.2f below %.1f (take %.1f%% vs stop %.1f%%)" % (take / stop, MIN_RR, take, stop))
+            rt = (FEE + MAKER_FEE) * 100
+            warn = ("reward/risk %.2f is below %.1f: after fees a win is %+.1f%% and a stop-out is -%.1f%%, so you must win more than %d%% of such trades"
+                    % (take / stop, MIN_RR, take - rt, stop + rt, min(100, round(100 * (stop + rt) / (take + stop)))))
+            if os.environ.get("SHACHAR_RR_GATE") == "1":
+                raise Refuse("refused: " + warn)
         lq, lwhy = liquid(p, tk)
         if not lq:
             raise Refuse("refused: not liquid enough (%s)" % lwhy)
@@ -402,7 +408,7 @@ def _plan(k, b, d, tk, mode, internal, risk):
         ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy", mode=mode, internal=internal)
         if not ok:
             raise Refuse("blocked by policy: %s" % why)
-        return {"act": "buy", "p": p, "vol": vol, "usdc": usdc, "stop": stop, "take": take}
+        return {"act": "buy", "p": p, "vol": vol, "usdc": usdc, "stop": stop, "take": take, "warn": warn}
     frac = min(1.0, num(d.get("fraction"), 1.0))
     held = b["pos"].get(p, 0.0)
     q = held if frac >= 0.999 else kraken.floor_to(held * frac, info["lot_decimals"])
@@ -590,7 +596,7 @@ def execute(k, s, b, d, tk, mode, validate, internal=False, risk=False):
                     b["pending"] = {"p": p, "vol": vol, "price": tk[p]["bid"], "last0": tk[p]["last"],
                                     "stop": plan["stop"], "take": plan["take"], "t": time.time()}
                 return "paper maker order working: buy %s %.6f @ %.4f (fills only if the market trades through it within %ds)" % (
-                    p, vol, tk[p]["bid"], kraken.Kraken.MAKER_WAIT)
+                    p, vol, tk[p]["bid"], kraken.Kraken.MAKER_WAIT) + (" | warning: " + plan["warn"] if plan.get("warn") else "")
             maker = act == "buy"
             cost = vol * tk[p]["bid"]       # instant paper fill (single `cycle` runs and tests): optimistic
             res = {"fills": [(vol, cost, cost * (MAKER_FEE if maker else FEE))], "side": act}
@@ -616,6 +622,8 @@ def execute(k, s, b, d, tk, mode, validate, internal=False, risk=False):
         if mode == "live" or validate:
             if p in b["pos"]:
                 ensure_stop(k, b, p, mode, validate)
+        if msg and plan.get("warn"):
+            msg += " | warning: " + plan["warn"]       # the brain reads this in me.recent_results
         return msg or "no trade"
     finally:
         with LOCK:
