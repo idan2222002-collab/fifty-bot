@@ -39,6 +39,8 @@ def check(bot, amount, category, payee, purpose, side="buy", owner_approved=Fals
             reason = "trades only on the approved venue"
         elif side == "buy" and amount > bot["cash"] * MAX_TRADE_FRAC:
             reason = "buy exceeds 90% of the bot's own cash"
+        elif side == "sell" and purpose.startswith("guard:"):
+            pass  # protective exit by the 1-second guard is never blocked by the daily cap
         elif _today_trades(bot["name"]) >= MAX_TRADES_PER_DAY:
             reason = "daily trade cap reached"
     else:
