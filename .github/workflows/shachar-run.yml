@@ -33,15 +33,15 @@ jobs:
           git config --global user.email shachar@users.noreply.github.com
           git clone -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" /tmp/st
           (cd /tmp/st && { git checkout -q state 2>/dev/null || { git checkout -q --orphan state && git rm -rfq . ; } ; } ; true)
-          for f in state_dry.json state_live.json journal.jsonl actions.jsonl lessons.md HALT; do [ -f /tmp/st/$f ] && cp /tmp/st/$f . || true; done
+          for f in state_dry.json state_live.json journal.jsonl actions_dry.jsonl actions_live.jsonl lessons.md HALT; do [ -f /tmp/st/$f ] && cp /tmp/st/$f . || true; done
           save() {
-            for f in state_dry.json state_live.json journal.jsonl actions.jsonl lessons.md HALT; do [ -f $f ] && cp $f /tmp/st/ || true; done
-            (cd /tmp/st && find . -maxdepth 1 -type f ! -name state_dry.json ! -name state_live.json ! -name journal.jsonl ! -name actions.jsonl ! -name lessons.md ! -name HALT -delete; git add -A && (git diff --cached --quiet || git commit -q -m "state $(date -u +%FT%TZ)") && git push -q origin state) || echo "save failed"
+            for f in state_dry.json state_live.json journal.jsonl actions_dry.jsonl actions_live.jsonl lessons.md HALT; do [ -f $f ] && cp $f /tmp/st/ || true; done
+            (cd /tmp/st && find . -maxdepth 1 -type f ! -name state_dry.json ! -name state_live.json ! -name journal.jsonl ! -name actions_dry.jsonl ! -name actions_live.jsonl ! -name lessons.md ! -name HALT -delete; git add -A && (git diff --cached --quiet || git commit -q -m "state $(date -u +%FT%TZ)") && git push -q origin state) || echo "save failed"
           }
           python -u guard.py $MODE > run.log 2>&1 &
           PID=$!
           END=$((SECONDS+20400))
-          while [ $SECONDS -lt $END ] && kill -0 $PID 2>/dev/null; do sleep 600; save; tail -n 3 run.log; done
+          while [ $SECONDS -lt $END ] && kill -0 $PID 2>/dev/null; do sleep 300; save; tail -n 3 run.log; done
           kill $PID 2>/dev/null || true
           sleep 3
           save
