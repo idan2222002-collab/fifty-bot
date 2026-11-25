@@ -11,3 +11,4 @@
 - 2026-11-25 [shachar] Select assets with clear short‑term momentum (>2% 6h) and low spread to ensure the trade can cover the ~1.6% round‑trip cost
 - 2026-11-25 [shachar] locked modest profit on ETH after 2% 6h gain, avoiding fee drag and idle strike
 - 2026-11-25 [shachar] avoid trading on marginal 1.5% BTC move; wait for stronger momentum before entering new positions
+- 2026-11-25 [shachar] Holding when short‑term move is <3% prevents unnecessary round‑trip fees; idle strike not imminent
