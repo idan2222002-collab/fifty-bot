@@ -10,6 +10,7 @@ LIVE_TOKEN = "YES_IDAN_APPROVED"
 # pairs(), the tickers and assert_spot() all use.
 UNIVERSE = ["XBTUSDC", "ETHUSDC", "SOLUSDC", "XRPUSDC", "ADAUSDC", "XDGUSDC", "LINKUSDC", "LTCUSDC"]
 DONE = ("closed", "canceled", "expired")
+ABORT = threading.Event()          # set when the host is stopping: a resting maker entry is cancelled at once
 ALLOWED_KEYS = {"pair", "type", "ordertype", "volume", "price", "oflags", "userref", "validate", "nonce"}
 
 _PRIV_LOCK = threading.Lock()      # one private call at a time, nonce strictly increasing
@@ -276,7 +277,7 @@ class Kraken:
             while True:
                 time.sleep(self.POLL)
                 q = self.query_order(txid)
-                if q["status"] in DONE or time.time() >= end:
+                if q["status"] in DONE or time.time() >= end or ABORT.is_set():
                     break
         except Exception as e:
             polled_err = e

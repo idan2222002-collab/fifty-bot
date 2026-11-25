@@ -257,6 +257,32 @@ assert "DOGEUSDC" not in kraken.UNIVERSE
 assert shachar.real_holdings({"XXDG": 50.0, "USDC": 1.5}) == (1.5, {"XDG": 50.0})
 print("XDG mapping OK")
 
+# 15. clean stop: a resting maker entry is cancelled at once instead of being left on Kraken
+import time as _time, threading as _threading, guard
+k, ex = mk(); s, b = bot(); ex.maker_fill = "none"
+lf = policy.logfile("live")
+if lf.exists(): lf.unlink()
+k.MAKER_WAIT = 60                                    # would rest for a minute...
+kraken.ABORT.set()                                   # ...but the host is stopping
+t0 = _time.time()
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+kraken.ABORT.clear()
+assert _time.time() - t0 < 5 and "not filled" in r, (r, _time.time() - t0)
+assert not [o for o in ex.orders.values() if o["status"] == "open"] and not b["pos"] and b["cash"] == 40.0
+print("maker entry cancelled on stop OK")
+
+# 16. shutdown waits for an order in flight, then writes the state
+s, b = bot(cash=33.0)
+shachar.INFLIGHT.add(("shachar", "XBTUSDC"))
+_threading.Timer(0.4, shachar.INFLIGHT.clear).start()
+t0 = _time.time()
+assert guard.shutdown("live", wait_s=5) is True and 0.3 < _time.time() - t0 < 4
+assert kraken.ABORT.is_set() and '"cash": 33.0' in shachar.sfile("live").read_text()
+shachar.INFLIGHT.add(("shachar", "XBTUSDC"))
+assert guard.shutdown("live", wait_s=0.3) is False   # it does not hang forever on a stuck order
+shachar.INFLIGHT.clear(); kraken.ABORT.clear()
+print("shutdown waits and saves OK")
+
 # 9. dry fills never count toward live caps
 policy.record("shachar", "dry", 10, "buy")
 assert policy._count("shachar", "live") == 0 or True
