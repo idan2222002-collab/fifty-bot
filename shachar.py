@@ -77,7 +77,14 @@ def market(k, tk):
             ch6 = (c[-1] / c[-7] - 1) * 100 if len(c) >= 7 else 0.0
         except Exception:
             ch6 = 0.0
-        out[p] = {"price": t["last"], "chg_24h_pct": round((t["last"] / t["open"] - 1) * 100, 2),
+        try:
+            cl = c
+            rets = [cl[i] / cl[i - 1] - 1 for i in range(max(1, len(cl) - 24), len(cl))]
+            m_ = sum(rets) / len(rets)
+            vol1h = (sum((x - m_) ** 2 for x in rets) / len(rets)) ** 0.5 * 100
+        except Exception:
+            vol1h = 0.0
+        out[p] = {"vol_1h_pct": round(vol1h, 3), "price": t["last"], "chg_24h_pct": round((t["last"] / t["open"] - 1) * 100, 2),
                   "chg_6h_pct": round(ch6, 2), "min_order": k.pairs()[p]["ordermin"]}
     return out
 
@@ -100,6 +107,18 @@ def liquid(p, tk):
     if vol < MIN_VOL_USD:
         return False, "24h volume %.0f USD < %d" % (vol, MIN_VOL_USD)
     return True, ""
+
+
+def btc_alert(mk, scan):
+    """Flag a big BTC move: 1h >= 2% or 6h >= 5% (either direction). BTC leads the market."""
+    c1 = ((scan or {}).get("pairs", {}).get("XBTUSDC", {}) or {}).get("chg_1h_pct")
+    c6 = mk.get("XBTUSDC", {}).get("chg_6h_pct", 0)
+    msgs = []
+    if c1 is not None and abs(c1) >= 2:
+        msgs.append("BTC %+.1f%% in 1h" % c1)
+    if abs(c6) >= 5:
+        msgs.append("BTC %+.1f%% in 6h" % c6)
+    return msgs or "none"
 
 
 def opportunities(mk, scan, tk):
@@ -264,6 +283,19 @@ def cycle(mode, validate=False, scan=None):
         if scan:
             ctx["scan"] = scan
         ctx["opportunities"] = opportunities(mk, scan, tk)
+        ctx["btc_alert"] = btc_alert(mk, scan)
+        try:
+            peg = k.usdc_peg()
+            ctx["usdc_peg"] = {"usdc_usd": round(peg, 4), "warning": "USDC off peg, your cash may be at risk" if abs(peg - 1) > 0.003 else "ok"}
+        except Exception:
+            ctx["usdc_peg"] = {"warning": "unavailable"}
+        want = [o["pair"] for o in ctx["opportunities"][:3]] + [p for p in b["pos"] if p in tk]
+        ctx["order_books"] = {}
+        for p in dict.fromkeys(want):
+            try:
+                ctx["order_books"][p] = k.depth(p)
+            except Exception:
+                pass
         ctx["cooldown_pairs"] = [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]
         ctx["not_liquid"] = [p for p in mk if p in tk and not liquid(p, tk)[0]]
         d = brain.decide(ctx)            # slow (LLM); the guard thread keeps running meanwhile
