@@ -84,6 +84,9 @@ def main(mode="dry", validate=False):
                 print("GUARD", a)
             if n % 10 == 0:
                 sc.dump()
+            if mode == "live" and kraken.live_enabled() and n % 600 == 599:
+                with shachar.LOCK:
+                    shachar.reconcile(k, shachar.load(mode, 0.0), sc.tk)
             errs = 0
         except Exception as e:
             errs += 1
