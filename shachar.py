@@ -89,6 +89,7 @@ def market(k, tk):
     return out
 
 
+MAKER_FEE = 0.005       # post-only entry fee used in the paper ledger (pessimistic vs Kraken maker tier)
 MIN_HOLD_H = 3          # brain cannot sell a fresh position (guard exits are exempt)
 COOLDOWN_H = 6          # per-coin cooldown after a sell
 MIN_TAKE_PCT = 3.0      # fee gate: ~1.6% round trip plus margin
@@ -107,6 +108,35 @@ def liquid(p, tk):
     if vol < MIN_VOL_USD:
         return False, "24h volume %.0f USD < %d" % (vol, MIN_VOL_USD)
     return True, ""
+
+
+def backtest_setup(closes, kind, stop=0.03, take=0.05, hold=48, fee_pct=1.6):
+    """Simple replay on hourly closes (about 30 days): every time this setup appeared, enter at the close, exit at
+    -stop, +take or after `hold` hours, subtract round-trip fees. Closes only (no highs/lows), so it is rough.
+    Returns {n, win_pct, avg_net_pct} or None when there is too little history."""
+    c = closes
+    nets, i = [], 24
+    while i < len(c) - 2:
+        c6, c24, c1 = c[i] / c[i - 6] - 1, c[i] / c[i - 24] - 1, c[i] / c[i - 1] - 1
+        hit = ((kind == "breakout" and 0.03 <= c6 <= 0.08 and c1 > 0) or
+               (kind == "trend" and 0.01 <= c6 < 0.05 and c24 > 0 and c1 > 0) or
+               (kind == "rebound" and c24 <= -0.03 and c1 > 0))
+        if not hit:
+            i += 1
+            continue
+        px, r, j = c[i], 0.0, i + 1
+        while j < min(len(c), i + 1 + hold):
+            r = c[j] / px - 1
+            if r <= -stop:
+                r = -stop; break
+            if r >= take:
+                r = take; break
+            j += 1
+        nets.append(r * 100 - fee_pct)
+        i = j + 1
+    if len(nets) < 3:
+        return None
+    return {"n": len(nets), "win_pct": round(100 * sum(1 for x in nets if x > 0) / len(nets)), "avg_net_pct": round(sum(nets) / len(nets), 2)}
 
 
 def btc_alert(mk, scan):
@@ -191,18 +221,29 @@ def execute(k, s, b, d, tk, mode, validate):
     if not ok:
         return "blocked by policy: %s" % why
     vol = round(vol, info["lot_decimals"])
-    if mode == "live":
+    maker = act == "buy"          # entries are post-only limit orders at the bid (maker fee); exits stay market (safety first)
+    if mode == "live" and maker:
+        try:
+            r = k.order_maker(p, "buy", vol, tk[p]["bid"], userref=abs(hash(b["name"])) % 10**6)
+        except Exception as e:
+            return "maker entry failed, no trade: %s" % str(e)[:100]
+        if not r["live"]:
+            return "validated only (live orders off): %s" % r["descr"]
+        if r["vol"] < info["ordermin"]:
+            return "maker entry not filled in time, cancelled, no trade (no chasing)"
+        qty, cost, fee = r["vol"], r["cost"], r["fee"]
+    elif mode == "live":
         r = k.order(p, act, vol, userref=abs(hash(b["name"])) % 10**6)
         if not r["live"]:
             return "validated only (live orders off): %s" % r["descr"]
         qty, cost, fee = r["vol"], r["cost"], r["fee"]
     else:
         if validate:
-            r = k.order(p, act, vol)
+            r = k.order_maker(p, "buy", vol, tk[p]["bid"]) if maker else k.order(p, act, vol)
             jlog({"bot": b["name"], "validated": r["descr"]})
         qty = vol
-        cost = vol * (tk[p]["ask"] if act == "buy" else tk[p]["bid"])
-        fee = cost * FEE
+        cost = vol * (tk[p]["bid"] if maker else tk[p]["bid"] if act == "sell" else tk[p]["ask"])
+        fee = cost * (MAKER_FEE if maker else FEE)
     gd = b.setdefault("guards", {})
     if act == "buy":
         b["cash"] -= cost + fee
@@ -289,6 +330,11 @@ def cycle(mode, validate=False, scan=None):
             ctx["usdc_peg"] = {"usdc_usd": round(peg, 4), "warning": "USDC off peg, your cash may be at risk" if abs(peg - 1) > 0.003 else "ok"}
         except Exception:
             ctx["usdc_peg"] = {"warning": "unavailable"}
+        for o in ctx["opportunities"][:3]:
+            try:
+                o["backtest_30d"] = backtest_setup(k.ohlc_full(o["pair"]), o["setup"]) or "too few cases"
+            except Exception:
+                pass
         want = [o["pair"] for o in ctx["opportunities"][:3]] + [p for p in b["pos"] if p in tk]
         ctx["order_books"] = {}
         for p in dict.fromkeys(want):
