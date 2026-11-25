@@ -5,7 +5,7 @@
   python shachar.py status [dry|live]
 Survival: equity < DEATH_FLOOR = dead. 24h without a trade = idle strike, 3 strikes = dead.
 Reproduction: equity >= 2x start and enough free cash = child funded with half of the profit."""
-import json, sys, time, pathlib, threading
+import os, json, sys, time, pathlib, threading
 import kraken, news, brain, policy
 
 HERE = pathlib.Path(__file__).parent
@@ -61,6 +61,10 @@ def market(k, tk):
     return out
 
 
+COOLDOWN_H = 6          # per-coin cooldown after a sell
+MIN_TAKE_PCT = 3.0      # fee gate: ~1.6% round trip plus margin
+
+
 def execute(k, s, b, d, tk, mode, validate):
     """Apply one decision. Returns a short result string; trades update the ledger."""
     act = d.get("action")
@@ -73,6 +77,12 @@ def execute(k, s, b, d, tk, mode, validate):
         vol = usdc * (1 - FEE) / tk[p]["ask"]
         if usdc < max(info["costmin"], 1) or vol < info["ordermin"]:
             return "refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"])
+        if os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists():
+            return "refused: halt flag is set (no new buys)"
+        if time.time() - b.get("cool", {}).get(p, 0) < COOLDOWN_H * 3600:
+            return "refused: %s is in cooldown after its last sell" % p
+        if float(d.get("take_pct", 5)) < MIN_TAKE_PCT:
+            return "refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT
         if usdc > b["cash"] * 0.99:
             return "refused: would spend more than the account balance (spot only, never negative)"
         ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy")
@@ -106,7 +116,7 @@ def execute(k, s, b, d, tk, mode, validate):
         entry = cost / qty
         sp = min(10.0, max(1.5, float(d.get("stop_pct", 3)))) / 100
         tp = min(20.0, max(2.0, float(d.get("take_pct", 5)))) / 100
-        gd[p] = {"entry": entry, "stop": entry * (1 - sp), "take": entry * (1 + tp), "high": entry, "stop_txid": None}
+        gd[p] = {"entry": entry, "stop": entry * (1 - sp), "take": entry * (1 + tp), "high": entry, "stop_txid": None, "t": time.time()}
         if mode == "live" or validate:
             try:
                 so = k.stop_order(p, b["pos"][p], gd[p]["stop"])
@@ -119,6 +129,7 @@ def execute(k, s, b, d, tk, mode, validate):
             try: k.cancel(g["stop_txid"])
             except Exception as e: jlog({"bot": b["name"], "cancel_error": str(e)[:150]})
         b["cash"] += cost - fee
+        b.setdefault("cool", {})[p] = time.time()
         b["pos"][p] = b["pos"].get(p, 0.0) - qty
         if b["pos"][p] * tk[p]["bid"] < 1:
             b["pos"].pop(p); gd.pop(p, None)
