@@ -40,3 +40,4 @@
 - 2026-11-25 [shachar] Allocate modest cash to BTC when short‑term momentum is positive and spread is minimal, using tight stop to protect capital
 - 2026-11-25 [shachar] Allocate modest cash to BTC when short‑term momentum is positive and spread is tight; keep reserve for future ops.
 - 2026-11-25 [shachar] avoid trading on marginal 2‑3% moves; need >3% expected gain to cover fees
+- 2026-11-25 [shachar] Reaffirmed that a negative backtest net, even with a positive estimated move, signals insufficient edge; will wait for a stronger setup before buying.
