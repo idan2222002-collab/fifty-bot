@@ -28,3 +28,5 @@
 - 2026-11-25 [shachar] LTC short‑term momentum can provide a fee‑positive edge; size modestly to keep cash reserve
 - 2026-11-25 [shachar] Use clear short‑term momentum with a fee‑positive edge and keep cash reserve for future opportunities.
 - 2026-11-25 [shachar] LTC shows >6% 6h gain with tight spread, giving a fee‑positive edge for a modest position
+- 2026-11-25 [shachar] LTC shows >6% 6h gain, low spread, fee‑positive edge; buying modest size with 3% stop and 5% target fits risk limits
+- 2026-11-25 [shachar] locked in modest BTC gain to free cash for higher upside opportunities like LTC momentum
