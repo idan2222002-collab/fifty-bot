@@ -11,7 +11,7 @@ import os, json, sys, time, pathlib, threading, zlib, urllib.request, urllib.err
 import kraken, news, brain, policy
 
 HERE = pathlib.Path(__file__).parent
-FEE = 0.008               # market order fee per side (pessimistic)
+FEE = 0.008               # Kraken Pro tier 1 spot taker 0.80% (official fee page)
 DEATH_FLOOR = 3.0         # USDC. Below this no Kraken order is possible, so the bot is dead
 IDLE_HOURS = 24           # informational only
 SPAWN_AT, CHILD_STAKE, MIN_CHILD, MAX_CHILDREN = 2.0, 0.5, 6.0, 3
@@ -210,7 +210,7 @@ def market(k, tk):
 
 BRAIN_MIN_BUSY_S = 2400
 BRAIN_MIN_IDLE_S = 10800
-MAKER_FEE = 0.005
+MAKER_FEE = 0.004       # Kraken Pro tier 1 spot maker 0.40% (taker 0.80% = FEE), official fee page, checked Nov 25 2026
 MIN_HOLD_H = 3
 COOLDOWN_H = 6
 MIN_TAKE_PCT = 3.0
