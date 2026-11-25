@@ -2,8 +2,8 @@
 If no LLM key is available it falls back to a plain heuristic and says so in the journal."""
 import json, os, urllib.request, re
 
-LLM_URL = os.environ.get("LLM_URL", "https://api.groq.com/openai/v1/chat/completions")
-LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_URL = os.environ.get("LLM_URL", "https://models.github.ai/inference/chat/completions")
+LLM_MODEL = os.environ.get("LLM_MODEL", "meta/Llama-3.3-70B-Instruct")
 LLM_KEY_FILE = os.environ.get("LLM_KEY_FILE", "")
 
 SYSTEM = """You are Shachar (שחר), an autonomous bot. You were given a small stake of USDC on Kraken (spot only).
