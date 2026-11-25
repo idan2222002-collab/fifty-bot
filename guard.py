@@ -21,6 +21,7 @@ def protect(k, sc, mode, validate):
     """One guard pass. Decides exits under LOCK, then executes them WITHOUT holding LOCK. Returns actions taken."""
     acts, todo = [], []
     tk = sc.tk
+    flatten = shachar.notify.owner_flatten()      # the owner opened a FLATTEN issue: sell everything
     with shachar.LOCK:
         s = shachar.load(mode, shachar.DRY_START)
         changed = False
@@ -45,7 +46,9 @@ def protect(k, sc, mode, validate):
                     if ns > g["stop"]:
                         g["stop"] = ns; changed = True
                 why = None
-                if px <= g["stop"]:
+                if flatten:
+                    why = "owner FLATTEN"
+                elif px <= g["stop"]:
                     why = "stop hit (%.4f <= %.4f)" % (px, g["stop"])
                 elif g.get("t") and time.time() - g["t"] > MAX_HOLD_H * 3600:
                     why = "time stop (held more than %dh)" % MAX_HOLD_H
@@ -115,6 +118,7 @@ def main(mode="dry", validate=False):
         shachar.boot_sync(k, shachar.load(mode, 0.0), sc.tk, mode)
     if mode != "live":
         shachar.PAPER_PENDING = True          # this loop watches paper entries, so they can fill honestly
+    shachar.notify.start_controls()               # owner's HALT / FLATTEN issues, polled in the background
     if os.environ.get("NO_BRAIN") != "1":
         threading.Thread(target=brain_loop, args=(sc, mode, validate, stop), daemon=True).start()
     n, errs, last_save = 0, 0, time.time()

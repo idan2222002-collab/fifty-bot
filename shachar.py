@@ -112,7 +112,7 @@ def remote_halt():
 
 
 def halted():
-    return os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists() or remote_halt()
+    return os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists() or notify.owner_halt() or remote_halt()
 
 
 ASSET = {"XXBT": "XBT", "XETH": "ETH", "XXRP": "XRP", "XXDG": "XDG", "XLTC": "LTC", "ZUSD": "USD"}

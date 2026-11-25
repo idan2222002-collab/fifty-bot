@@ -1,5 +1,8 @@
 """Alerts for the owner. Free, standard library only, no phone number and no extra account.
 
+Owner controls (see the end of this file): the repository OWNER opens an issue whose title starts with HALT or
+FLATTEN and closes it to lift the order. It works from the GitHub phone app and takes effect within two minutes.
+
 An alert becomes an issue in this repository, so GitHub tells the owner by mail and in its phone app.
 It needs GH_TOKEN and the repository name in the environment (the workflow already passes both) and the
 `issues: write` permission in the workflow. Without them an alert is still written to the journal by the caller
@@ -77,3 +80,75 @@ def drain(timeout=10):
     while _q.unfinished_tasks and time.time() < end:
         time.sleep(0.05)
     return not _q.unfinished_tasks
+
+
+# ---------------------------------------------------------------- owner controls
+# The owner opens an issue in this repository; the title is the order:
+#   HALT ...     no new buys. Stops, take-profit and time stops keep working.
+#   FLATTEN ...  sell every position to USDC, and no new buys.
+# Closing the issue lifts it. Only issues written by the repository owner count: the repository is public, and a
+# stranger must not be able to stop the bot or make it sell. Read by a background thread every CONTROL_EVERY_S
+# seconds, never under a lock. If GitHub cannot be reached the last known orders stay in force.
+CONTROL_EVERY_S = 120
+_flags = {"halt": False, "flatten": False, "ok_t": 0.0}
+_ctl = [None]
+
+
+def parse_flags(issues):
+    """Pure function. Pull requests, bot alerts and issues from anyone but the owner are ignored."""
+    halt, flat = False, False
+    for it in issues or []:
+        if "pull_request" in it or it.get("author_association") != "OWNER":
+            continue
+        t = (it.get("title") or "").strip().upper()
+        if t.startswith("FLATTEN"):
+            flat = True
+        elif t.startswith("HALT"):
+            halt = True
+    return {"halt": halt or flat, "flatten": flat}
+
+
+def refresh_flags():
+    """One poll. Never raises. Returns the flags in force."""
+    r = repo()
+    if not r:
+        return dict(_flags)
+    url = "%s/repos/%s/issues?state=open&per_page=50" % (GH_API, r)
+    issues = None
+    for auth in (True, False):                 # open issues of a public repository can also be read without the token
+        try:
+            issues = _gh("GET", url, auth=auth)
+            break
+        except Exception:
+            continue
+    if issues is None:
+        return dict(_flags)                    # unreachable: keep the last known orders
+    new = parse_flags(issues)
+    if (new["halt"], new["flatten"]) != (_flags["halt"], _flags["flatten"]):
+        word = "FLATTEN: selling everything, no new buys" if new["flatten"] else "HALT: no new buys" if new["halt"] else "lifted: trading as usual"
+        print("OWNER CONTROL", word)
+        alert("owner control " + word, "Read from the owner's open issues in this repository.", dedupe_s=0)
+    _flags.update(new, ok_t=time.time())
+    return dict(_flags)
+
+
+def _control_loop():
+    while True:
+        refresh_flags()
+        time.sleep(CONTROL_EVERY_S)
+
+
+def start_controls():
+    """Start polling (idempotent). Called once by guard.py."""
+    with _lock:
+        if _ctl[0] is None or not _ctl[0].is_alive():
+            _ctl[0] = threading.Thread(target=_control_loop, daemon=True)
+            _ctl[0].start()
+
+
+def owner_halt():
+    return bool(_flags["halt"] or _flags["flatten"])
+
+
+def owner_flatten():
+    return bool(_flags["flatten"])

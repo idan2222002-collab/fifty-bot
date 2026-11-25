@@ -317,6 +317,51 @@ notify._sent.clear(); notify.alert("no token"); assert notify.drain(5) and notif
 notify._sent.clear()
 print("alerts OK")
 
+# 19. owner controls by issue title: only the repository owner can halt or flatten
+own = lambda title: {"title": title, "author_association": "OWNER"}
+assert notify.parse_flags([{"title": "FLATTEN now", "author_association": "NONE"},              # a stranger
+                           {"title": "halt please", "author_association": "CONTRIBUTOR"},
+                           {"title": "[shachar] HALT: reconcile mismatch", "author_association": "NONE"},   # the bot's own alert
+                           dict(own("HALT"), pull_request={})]) == {"halt": False, "flatten": False}
+assert notify.parse_flags([own("  halt until Monday")]) == {"halt": True, "flatten": False}
+assert notify.parse_flags([own("FLATTEN")]) == {"halt": True, "flatten": True}
+assert notify.parse_flags([own("question about fees")]) == {"halt": False, "flatten": False}
+os.environ["GITHUB_REPOSITORY"] = "o/r"
+_real_gh, _real_send = notify._gh, notify._send
+notify._send = lambda title, body: "sent"
+_answer = [[own("HALT")]]
+def _fake_gh(method, url, payload=None, auth=True):
+    if isinstance(_answer[0], Exception):
+        raise _answer[0]
+    return _answer[0]
+notify._gh = _fake_gh
+assert notify.refresh_flags()["halt"] and notify.owner_halt() and not notify.owner_flatten()
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+lf = policy.logfile("live")
+if lf.exists(): lf.unlink()
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert "halt" in r and not ex.orders, r                                     # HALT issue open: no new buys
+_answer[0] = OSError("github unreachable")
+assert notify.refresh_flags()["halt"]                                       # unreachable: the last order stays in force
+_answer[0] = []
+assert not notify.refresh_flags()["halt"]                                   # issue closed: lifted
+k, ex, s, b = holding()
+class _SC: tk = TK
+assert guard.protect(k, _SC(), "live", False) == []                         # nothing to do
+_answer[0] = [own("FLATTEN everything")]
+notify.refresh_flags()
+acts = guard.protect(k, _SC(), "live", False)
+assert acts and acts[0][2] == "owner FLATTEN" and acts[0][3].startswith("sell") and not b["pos"], acts
+assert not [o for o in ex.orders.values() if o["status"] == "open"] and abs(b["cash"] - ex.bal["USDC"]) < 1e-6
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert "halt" in r, r                                                       # and no new buys while it is open
+notify._flags.update(halt=False, flatten=False)
+notify._gh, notify._send = _real_gh, _real_send
+os.environ.pop("GITHUB_REPOSITORY")
+assert notify.drain(5)
+notify._sent.clear()
+print("owner controls OK")
+
 # 9. dry fills never count toward live caps
 policy.record("shachar", "dry", 10, "buy")
 assert policy._count("shachar", "live") == 0 or True
