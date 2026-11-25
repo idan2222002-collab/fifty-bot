@@ -9,7 +9,7 @@ ALLOWED_PAYEES = {"kraken"}      # owner-approved. Anything else needs owner app
 MAX_SINGLE_SPEND_FRAC = 0.5      # non-trade action: at most half of balance
 MAX_TRADE_FRAC = 0.9             # one buy may use at most 90% of the bot's cash
 MAX_TRADES_PER_WEEK = 25          # per bot
-MAX_TRADES_PER_DAY = 6           # per bot, stops fee-burning busywork
+MAX_TRADES_PER_DAY = 8           # per bot, stops fee-burning busywork
 PAYEE_FOR_TRADE = "kraken"
 
 
