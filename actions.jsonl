@@ -1,1 +1,2 @@
 {"t": 1795625899.9879467, "day": "2026-11-25", "bot": "shachar", "amount": 20.0, "category": "trade", "side": "buy", "payee": "kraken", "purpose": "BTC down ~2% 24h with low spread and solid volume; a modest rebound could capture >5% upside while limiting loss to 3%", "ok": true, "reason": null}
+{"t": 1795626512.0332236, "day": "2026-11-25", "bot": "shachar", "amount": 20.0, "category": "trade", "side": "buy", "payee": "kraken", "purpose": "short-term uptrend: 6h price +3.0% with solid volume and tight spread, aiming for >5% move to cover fees", "ok": true, "reason": null}

@@ -4,26 +4,35 @@
   "shachar": {
    "name": "shachar",
    "alive": true,
-   "cash": 27.8710028,
+   "cash": 7.8722829913990395,
    "start": 47.87,
    "pos": {
-    "XBTUSDC": 0.00033915
+    "XBTUSDC": 0.00033915,
+    "LTCUSDC": 0.47967892
    },
    "parent": null,
    "children": [],
    "born": 1795625898.3282545,
-   "fees": 0.15872219999999998,
-   "last_action": 1795625899.9880223,
+   "fees": 0.31744219848096,
+   "last_action": 1795626512.0332842,
    "idle_strikes": 0,
-   "trades": 1,
+   "trades": 2,
    "guards": {
     "XBTUSDC": {
      "entry": 58500.0,
      "stop": 56745.0,
      "take": 61425.0,
-     "high": 59182.98,
+     "high": 59563.93,
      "stop_txid": null,
      "t": 1795625899.9880204
+    },
+    "LTCUSDC": {
+     "entry": 41.361,
+     "stop": 40.120169999999995,
+     "take": 43.42905,
+     "high": 41.528,
+     "stop_txid": null,
+     "t": 1795626512.0332823
     }
    }
   }
