@@ -87,6 +87,53 @@ COOLDOWN_H = 6          # per-coin cooldown after a sell
 MIN_TAKE_PCT = 3.0      # fee gate: ~1.6% round trip plus margin
 
 
+MAX_SPREAD_PCT = 0.2        # liquidity filter: a buy needs spread <= 0.2%
+MIN_VOL_USD = 500_000       # and 24h volume >= 500k USD (our orders are under 50 USD, so slippage is tiny)
+
+
+def liquid(p, tk):
+    t = tk[p]
+    spread = (t["ask"] / t["bid"] - 1) * 100
+    vol = t["vol24"] * t["last"]
+    if spread > MAX_SPREAD_PCT:
+        return False, "spread %.3f%% > %.1f%%" % (spread, MAX_SPREAD_PCT)
+    if vol < MIN_VOL_USD:
+        return False, "24h volume %.0f USD < %d" % (vol, MIN_VOL_USD)
+    return True, ""
+
+
+def opportunities(mk, scan, tk):
+    """Ranked list of liquid pairs showing a real setup. Pure rules on free Kraken data; the brain still decides.
+    breakout: 6h move >= 3% and the last hour still rising (not chased past 8%).
+    trend: steady climb (1h and 15m up, 6h 1-5%, 24h up).
+    rebound: 24h <= -3% and the 5m and 15m have turned up.
+    A setup is only listed when the target move (take-profit) can clear fees: est_move >= 3%."""
+    out = []
+    btc = mk.get("XBTUSDC", {})
+    for p, m in mk.items():
+        if p not in tk:
+            continue
+        ok, why = liquid(p, tk)
+        if not ok:
+            continue
+        sc = (scan or {}).get("pairs", {}).get(p, {})
+        c5, c15, c1h = sc.get("chg_5m_pct"), sc.get("chg_15m_pct"), sc.get("chg_1h_pct")
+        c6, c24 = m["chg_6h_pct"], m["chg_24h_pct"]
+        kind, est = None, 0.0
+        if c6 >= 3 and c6 <= 8 and (c1h is None or c1h > 0):
+            kind, est = "breakout", min(7.0, c6 * 1.2)
+        elif 1 <= c6 < 5 and c24 > 0 and (c1h or 0) > 0 and (c15 or 0) >= 0:
+            kind, est = "trend", min(5.0, 2.0 + c6)
+        elif c24 <= -3 and (c5 or 0) > 0 and (c15 or 0) > 0:
+            kind, est = "rebound", min(6.0, abs(c24) * 0.8)
+        if kind and est >= 3.0:
+            btc_ok = btc.get("chg_6h_pct", 0) > -1.5 or p == "XBTUSDC"
+            score = est + (1.0 if btc_ok else -2.0)
+            out.append({"pair": p, "setup": kind, "est_move_pct": round(est, 1), "btc_ok": btc_ok,
+                        "score": round(score, 1), "chg_6h": c6, "chg_24h": c24, "chg_1h": c1h, "chg_15m": c15})
+    return sorted(out, key=lambda r: -r["score"])
+
+
 def execute(k, s, b, d, tk, mode, validate):
     """Apply one decision. Returns a short result string; trades update the ledger."""
     act = d.get("action")
@@ -105,6 +152,9 @@ def execute(k, s, b, d, tk, mode, validate):
             return "refused: %s is in cooldown after its last sell" % p
         if float(d.get("take_pct", 5)) < MIN_TAKE_PCT:
             return "refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT
+        lq, lwhy = liquid(p, tk)
+        if not lq:
+            return "refused: not liquid enough (%s)" % lwhy
         if usdc > b["cash"] * 0.99:
             return "refused: would spend more than the account balance (spot only, never negative)"
         ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy")
@@ -213,6 +263,9 @@ def cycle(mode, validate=False, scan=None):
                       "reproduction": "ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)"}}
         if scan:
             ctx["scan"] = scan
+        ctx["opportunities"] = opportunities(mk, scan, tk)
+        ctx["cooldown_pairs"] = [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]
+        ctx["not_liquid"] = [p for p in mk if p in tk and not liquid(p, tk)[0]]
         d = brain.decide(ctx)            # slow (LLM); the guard thread keeps running meanwhile
         with LOCK:
             s = load(mode, start); b = s["bots"][b["name"]]
