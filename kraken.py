@@ -28,6 +28,15 @@ def assert_spot(data):
         raise ValueError("refused: volume must be positive")
 
 
+def book_summary(bids, asks):
+    bb, ba = float(bids[0][0]), float(asks[0][0])
+    mid = (bb + ba) / 2
+    bd = sum(float(p) * float(q) for p, q, *_ in bids if float(p) >= mid * 0.995)
+    ad = sum(float(p) * float(q) for p, q, *_ in asks if float(p) <= mid * 1.005)
+    return {"bid_usd_0.5pct": round(bd), "ask_usd_0.5pct": round(ad),
+            "imbalance": round((bd - ad) / (bd + ad), 2) if bd + ad else 0.0}
+
+
 def live_enabled():
     return os.environ.get("SHACHAR_LIVE") == LIVE_TOKEN
 
@@ -89,6 +98,16 @@ class Kraken:
         r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
         rows = [v for k, v in r.items() if k != "last"][0][-n:]
         return [[float(x[4]) for x in rows]]  # list with one series of closes
+
+    def depth(self, pair, count=25):
+        """Order book summary from the public Depth endpoint: USD resting within 0.5% of the mid on each side."""
+        r = list(_get("/0/public/Depth", {"pair": pair, "count": count}).values())[0]
+        return book_summary(r["bids"], r["asks"])
+
+    def usdc_peg(self):
+        """USDC/USD price from the public ticker (peg health)."""
+        v = list(_get("/0/public/Ticker", {"pair": "USDCUSD"}).values())[0]
+        return float(v["c"][0])
 
     # private
     def _priv(self, path, data):
