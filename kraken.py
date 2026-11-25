@@ -9,7 +9,7 @@ LIVE_TOKEN = "YES_IDAN_APPROVED"
 UNIVERSE = ["XBTUSDC", "ETHUSDC", "SOLUSDC", "XRPUSDC", "ADAUSDC", "DOGEUSDC", "LINKUSDC", "LTCUSDC"]
 
 
-FORBIDDEN_KEYS = {"leverage", "margin", "close", "oflags", "trading_agreement", "starttm", "expiretm"}
+FORBIDDEN_KEYS = {"leverage", "margin", "close", "trading_agreement", "starttm", "expiretm"}
 
 
 def assert_spot(data):
@@ -20,8 +20,12 @@ def assert_spot(data):
         raise ValueError("refused: forbidden order field %s (spot only, no leverage/margin)" % sorted(bad))
     if data.get("type") not in ("buy", "sell"):
         raise ValueError("refused: bad side")
-    if data.get("ordertype") not in ("market", "stop-loss"):
+    if data.get("ordertype") not in ("market", "stop-loss", "limit"):
         raise ValueError("refused: bad order type")
+    if "oflags" in data and data["oflags"] != "post":
+        raise ValueError("refused: only the post-only flag is allowed")
+    if data.get("ordertype") == "limit" and (data.get("oflags") != "post" or float(data.get("price", 0)) <= 0):
+        raise ValueError("refused: limit orders must be post-only (maker) with a price")
     if data.get("ordertype") == "stop-loss" and data.get("type") != "sell":
         raise ValueError("refused: stop-loss must be a sell")
     if float(data.get("volume", 0)) <= 0:
@@ -94,6 +98,11 @@ class Kraken:
                           "open": float(v["o"]), "vol24": float(v["v"][1])}
         return out
 
+    def ohlc_full(self, pair, interval=60):
+        """All returned hourly closes (about 30 days) for the simple back-test."""
+        r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
+        return [float(x[4]) for x in [v for kk, v in r.items() if kk != "last"][0]]
+
     def ohlc(self, pair, interval=60, n=48):
         r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
         rows = [v for k, v in r.items() if k != "last"][0][-n:]
@@ -142,6 +151,39 @@ class Kraken:
         if live and out["txid"]:
             time.sleep(3)
             q = self._priv("/0/private/QueryOrders", {"txid": out["txid"]})[out["txid"]]
+            out.update(vol=float(q["vol_exec"]), cost=float(q["cost"]), fee=float(q["fee"]), status=q["status"])
+        return out
+
+    def order_maker(self, pair, side, volume, price, wait=90, userref=None):
+        """Post-only limit order (maker fee, never crosses the book). Waits up to `wait` seconds, then cancels
+        what is left. Returns what actually filled. Without the live token it is only validated."""
+        live = live_enabled()
+        info = self.pairs()[pair]
+        data = {"pair": pair, "type": side, "ordertype": "limit", "oflags": "post",
+                "price": ("%." + str(info["pair_decimals"]) + "f") % price,
+                "volume": ("%." + str(info["lot_decimals"]) + "f") % volume}
+        if userref:
+            data["userref"] = str(userref)
+        assert_spot(data)
+        if not live:
+            data["validate"] = "true"
+        res = self._priv("/0/private/AddOrder", data)
+        out = {"live": live, "descr": res.get("descr", {}).get("order"), "txid": (res.get("txid") or [None])[0]}
+        if live and out["txid"]:
+            end = time.time() + wait
+            q = {}
+            while time.time() < end:
+                time.sleep(5)
+                q = self._priv("/0/private/QueryOrders", {"txid": out["txid"]})[out["txid"]]
+                if q["status"] in ("closed", "canceled", "expired"):
+                    break
+            if q.get("status") not in ("closed", "canceled", "expired"):
+                try:
+                    self._priv("/0/private/CancelOrder", {"txid": out["txid"]})
+                except Exception:
+                    pass
+                time.sleep(2)
+                q = self._priv("/0/private/QueryOrders", {"txid": out["txid"]})[out["txid"]]
             out.update(vol=float(q["vol_exec"]), cost=float(q["cost"]), fee=float(q["fee"]), status=q["status"])
         return out
 
