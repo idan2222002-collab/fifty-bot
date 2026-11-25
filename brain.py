@@ -5,7 +5,7 @@ import json, os, urllib.request, urllib.error, re
 LLM_URL = os.environ.get("LLM_URL", "https://api.groq.com/openai/v1/chat/completions")
 LLM_MODEL = os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
 LLM_KEY_FILE = os.environ.get("LLM_KEY_FILE", "")
-LLM_MODELS = [m for m in os.environ.get("LLM_MODELS", LLM_MODEL + ",llama-3.3-70b-versatile").split(",") if m]  # fallback when a model hits its free daily limit
+LLM_MODELS = [m for m in os.environ.get("LLM_MODELS", LLM_MODEL + ",openai/gpt-oss-20b,qwen/qwen3.8-27b").split(",") if m]  # fallback when a model hits its free daily limit
 
 SYSTEM = """You are Shachar (שחר), an autonomous bot. You were given a small stake of USDC on Kraken (spot only).
 Goal: make profit, then reproduce (a child bot is funded when your equity reaches 2x your start).
