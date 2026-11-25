@@ -3,7 +3,7 @@ If no LLM key is available it falls back to a plain heuristic and says so in the
 import json, os, urllib.request, re
 
 LLM_URL = os.environ.get("LLM_URL", "https://api.groq.com/openai/v1/chat/completions")
-LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
 LLM_KEY_FILE = os.environ.get("LLM_KEY_FILE", "")
 
 SYSTEM = """You are Shachar (שחר), an autonomous bot. You were given a small stake of USDC on Kraken (spot only).
@@ -39,7 +39,7 @@ def ask_llm(ctx):
     k = _key()
     if not k:
         return None
-    body = {"model": LLM_MODEL, "temperature": 0.4, "max_tokens": 400,
+    body = {"model": LLM_MODEL, "temperature": 0.4, "max_tokens": 1500,
             "messages": [{"role": "system", "content": SYSTEM + "\n\n" + _knowledge()}, {"role": "user", "content": json.dumps(ctx)}]}
     req = urllib.request.Request(LLM_URL, data=json.dumps(body).encode(),
                                  headers={"Authorization": "Bearer " + k, "Content-Type": "application/json",
