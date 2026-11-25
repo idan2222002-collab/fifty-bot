@@ -210,6 +210,7 @@ def market(k, tk):
 
 BRAIN_MIN_BUSY_S = 2400
 BRAIN_MIN_IDLE_S = 10800
+BRAIN_ERR_BACKOFF_S = 600   # after an LLM error: try again in 10 minutes (an error does not use up the window)
 MAKER_FEE = 0.004       # Kraken Pro tier 1 spot maker 0.40% (taker 0.80% = FEE), official fee page, checked Nov 25 2026
 MIN_HOLD_H = 3
 COOLDOWN_H = 6
@@ -625,6 +626,7 @@ def cycle(mode, validate=False, scan=None, k=None):
                           "reproduction": ("ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)") if mode != "live" else "off in live"},
                    "cooldown_pairs": [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]}
             positions = [p for p in b["pos"] if p in tk]
+        ctx["me"]["recent_results"] = list(b.get("recent", []))
         if scan:
             ctx["scan"] = scan
         ctx["opportunities"] = opportunities(mk, scan, tk)
@@ -652,11 +654,22 @@ def cycle(mode, validate=False, scan=None, k=None):
         wait_s = BRAIN_MIN_BUSY_S if busy else BRAIN_MIN_IDLE_S
         if time.time() - b.get("last_brain", 0) < wait_s:
             d = {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}
+        elif time.time() - b.get("last_brain_err", 0) < BRAIN_ERR_BACKOFF_S:
+            d = {"action": "hold", "reason": "gate: waiting a few minutes after an LLM error", "source": "gate"}
         else:
             d = brain.decide(ctx)        # slow (LLM), no lock held; the guard thread keeps running meanwhile
-        if d.get("source") != "gate":
+        src = d.get("source") if isinstance(d, dict) else "llm_error"
+        if not isinstance(d, dict):
+            d = {"action": "hold", "reason": "brain returned no object", "source": src}
+        if src in ("llm_error", "no_llm"):
+            b["last_brain_err"] = time.time()     # the brain did not really think: do not make it wait 40 minutes
+        elif src != "gate":
             b["last_brain"] = time.time()
         res = execute(k, s, b, d, tk, mode, validate, risk=risk)
+        if src != "gate":                         # the brain reads what happened to its last proposals, refusals included
+            with LOCK:
+                b["recent"] = (b.get("recent") or [])[-5:] + [{"t": time.strftime("%F %H:%M"), "action": d.get("action"),
+                                                               "pair": d.get("pair"), "result": str(res)[:220]}]
         if d.get("lesson"):
             with (HERE / "lessons.md").open("a") as f:
                 f.write("- %s [%s] %s\n" % (time.strftime("%F"), b["name"], str(d["lesson"])[:300]))

@@ -121,3 +121,61 @@ bm = {"name": "t6", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees
 r = shachar.execute(FK(), {"bots": {"t6": bm}}, bm, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
 assert r.startswith("buy") and abs(bm["fees"] - 10 * 0.995 * 0.005 / 0.995) < 0.5 and bm["cash"] >= 0, (r, bm)
 print("MAKER / BACKTEST TESTS PASSED")
+
+# brain plumbing: an LLM error must not use up the 40-minute window, and the brain sees its own results
+import tempfile as _tf, pathlib as _pl, time as _time, json as _json, brain, news, policy as _policy
+shachar.HERE = _policy.HERE = _pl.Path(_tf.mkdtemp())
+
+
+class FKC(FK):
+    def tickers(self): return {"XBTUSDC": {"bid": 100.0, "ask": 100.05, "last": 100.0, "open": 100.0, "vol24": 1e6}}
+    def ohlc(self, p, interval=60, n=48): return [[100.0] * 48]
+    def ohlc_full(self, p, interval=60): return [100.0] * 300
+    def usdc_peg(self): return 1.0
+    def depth(self, p, count=25): return {"bid_usd_0.5pct": 1, "ask_usd_0.5pct": 1, "imbalance": 0.0}
+
+
+bc = {"name": "tc", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0,
+      "last_action": _time.time(), "children": []}
+shachar._STATE["dry"] = {"bots": {"tc": bc}, "log": []}
+shachar.INFLIGHT.clear()
+_calls, _answer = [], [{"action": "hold", "reason": "llm error: http 429", "source": "llm_error"}]
+_real_decide, _real_fg = brain.decide, news.fear_greed
+brain.decide = lambda ctx: (_calls.append(ctx), dict(_answer[0]))[1]
+news.fear_greed = lambda: None
+shachar.cycle("dry", k=FKC())
+assert len(_calls) == 1 and not bc.get("last_brain") and bc.get("last_brain_err"), bc      # the window was not used up
+assert bc["recent"][-1]["result"] == "no trade"
+shachar.cycle("dry", k=FKC())
+assert len(_calls) == 1                                                                    # 10-minute backoff, no hammering
+bc["last_brain_err"] = _time.time() - shachar.BRAIN_ERR_BACKOFF_S - 1
+_answer[0] = {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 2, "stop_pct": 3, "source": "llm"}
+shachar.cycle("dry", k=FKC())
+assert len(_calls) == 2 and bc.get("last_brain") and "fee gate" in bc["recent"][-1]["result"], bc["recent"]
+assert _calls[1]["me"]["recent_results"][-1]["result"] == "no trade"                       # the brain was shown its last result
+for _ in range(9):
+    bc["last_brain"] = 0
+    shachar.cycle("dry", k=FKC())
+assert len(bc["recent"]) == 6                                                              # bounded history
+brain.decide, news.fear_greed = _real_decide, _real_fg
+shachar._STATE.pop("dry")
+
+# a model that answers without JSON does not end the round: the next model is asked
+import os as _os, urllib.request as _ur
+_replies = iter(["I would rather wait and see.", _json.dumps({"action": "hold", "reason": "ok"})])
+
+
+class _Resp:
+    def __init__(self, txt): self.txt = txt
+    def read(self): return _json.dumps({"choices": [{"message": {"content": self.txt}}]}).encode()
+
+
+_os.environ["LLM_KEY"] = "x"
+_real_open, _real_models = _ur.urlopen, brain.LLM_MODELS
+_ur.urlopen = lambda req, timeout=0: _Resp(next(_replies))
+brain.LLM_MODELS = ["m1", "m2"]
+d = brain.ask_llm({"x": 1})
+_ur.urlopen, brain.LLM_MODELS = _real_open, _real_models
+_os.environ.pop("LLM_KEY")
+assert d["source"] == "llm:m2" and d["action"] == "hold", d
+print("BRAIN WINDOW / RECENT RESULTS / MODEL FALLBACK TESTS PASSED")
