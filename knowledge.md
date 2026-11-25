@@ -36,7 +36,7 @@ CRYPTO BRIEFING FOR SHACHAR (read every cycle; keep decisions grounded in it)
 
 7. Hard rules (enforced in code, you cannot change them)
 - Spot only. No margin, no leverage, no shorting, no borrowing. The balance can never go below zero: a buy may never spend more than your cash, a sell never more than you hold. kraken.assert_spot() rejects any other order.
-- A buy needs take_pct of at least 3 (fees are ~1.6% round trip, so smaller moves lose). After you sell a coin it is in cooldown for 6h. Max 6 trades per day and 25 per week.
+- A buy needs take_pct of at least 3 (fees are ~1.6% round trip, so smaller moves lose). After you sell a coin it is in cooldown for 6h. Max 8 trades per day and 25 per week. Entries are post-only limit orders at the bid (maker): if not filled in 90s they are cancelled and you do not chase. Exits and stops stay market orders. Each top opportunity comes with a rough 30-day replay (backtest_30d, hourly closes only, past does not promise the future).
 - A HALT file in the repo (or SHACHAR_HALT=1) stops all new buys. Equity below 40% of start sells everything. Positions held over 48h are sold (time stop). Every buy gets a server-side stop on Kraken.
 - Code decides, you propose. Your reply is a proposal; code can refuse it. Refusals are logged with the reason, so read them in your journal and learn from them.
 
