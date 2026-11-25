@@ -39,6 +39,9 @@ class Exchange:
         if path.endswith("OpenOrders"):
             return {"open": {t: {"descr": {"pair": o["pair"], "type": o["type"], "ordertype": o["otype"]}, "userref": o["ref"]}
                              for t, o in self.orders.items() if o["status"] == "open"}}
+        if path.endswith("ClosedOrders"):
+            return {"closed": {t: {"status": o["status"], "vol_exec": str(o["exec"]), "cost": str(o["cost"]), "fee": str(o["fee"])}
+                               for t, o in self.orders.items() if o["status"] != "open" and str(o["ref"]) == str(data.get("userref"))}}
         if path.endswith("QueryOrders"):
             o = self.orders[data["txid"]]
             return {data["txid"]: {"status": o["status"], "vol_exec": str(o["exec"]), "cost": str(o["cost"]), "fee": str(o["fee"])}}
@@ -181,6 +184,78 @@ b["guards"]["XBTUSDC"]["t"] = __import__("time").time()
 r = shachar.execute(k, s, b, {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "guard: pretend"}, TK, "live", False)
 assert "minimum hold" in r, r
 print("size cap / no guard-prefix bypass OK")
+
+def holding():
+    """A fresh exchange and bot holding one BTC position with its Kraken stop. Clears today's trade log first, so the
+    daily trade cap (8) does not refuse the entry in these later tests."""
+    lf = policy.logfile("live")
+    if lf.exists():
+        lf.unlink()
+    k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+    r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+    assert r.startswith("buy") and b["guards"]["XBTUSDC"]["stop_txid"], r
+    return k, ex, s, b
+
+
+# 10. a market sell that executed is booked even when reading its status fails (was: "sell failed" + phantom position)
+SELL = {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "guard"}
+k, ex, s, b = holding()
+orig = ex.priv
+def no_status_for_market(path, data):
+    if path.endswith("QueryOrders") and ex.orders[data["txid"]]["otype"] == "market":
+        raise OSError("connection reset")
+    return orig(path, data)
+k._priv = no_status_for_market
+r = shachar.execute(k, s, b, dict(SELL), TK, "live", False, internal=True)
+assert r.startswith("sell") and not b["pos"] and ex.bal["XXBT"] < 1e-9 and abs(b["cash"] - ex.bal["USDC"]) < 1e-6, (r, b)
+assert not (shachar.HERE / "HALT").exists()
+print("sell booked despite failed status read OK")
+
+# 11. the answer to the market sell itself is lost, but it executed: found by userref and booked
+k, ex, s, b = holding()
+orig = ex.priv
+def sell_reply_lost(path, data):
+    r_ = orig(path, data)
+    if path.endswith("AddOrder") and data["ordertype"] == "market":
+        raise OSError("timed out")
+    return r_
+k._priv = sell_reply_lost
+r = shachar.execute(k, s, b, dict(SELL), TK, "live", False, internal=True)
+assert r.startswith("sell") and not b["pos"] and abs(b["cash"] - ex.bal["USDC"]) < 1e-6, (r, b)
+print("sell with lost reply booked OK")
+
+# 12. the sell never reached Kraken (no answer, no such order): position kept, stop placed again, no HALT
+k, ex, s, b = holding()
+orig = ex.priv
+def sell_never_arrives(path, data):
+    if path.endswith("AddOrder") and data["ordertype"] == "market":
+        raise OSError("network unreachable")
+    return orig(path, data)
+k._priv = sell_never_arrives
+r = shachar.execute(k, s, b, dict(SELL), TK, "live", False, internal=True)
+assert "failed" in r and b["pos"] and abs(b["pos"]["XBTUSDC"] - ex.bal["XXBT"]) < 1e-9, (r, b)
+assert [o for o in ex.orders.values() if o["otype"] == "stop-loss" and o["status"] == "open"]
+print("sell that never arrived re-protects OK")
+
+# 13. nothing can be read at all after the sell: HALT, and the position is not silently dropped
+k, ex, s, b = holding()
+orig = ex.priv
+def blind_after_sell(path, data):
+    if path.endswith(("ClosedOrders", "OpenOrders")):
+        raise OSError("down")
+    if path.endswith("QueryOrders") and ex.orders[data["txid"]]["otype"] == "market":
+        raise OSError("down")
+    return orig(path, data)
+k._priv = blind_after_sell
+r = shachar.execute(k, s, b, dict(SELL), TK, "live", False, internal=True)
+assert (shachar.HERE / "HALT").exists(), r
+print("unknown sell state halts OK")
+
+# 14. Dogecoin: Kraken's altname is XDGUSDC and its balance code is XXDG
+kraken.assert_spot({"pair": "XDGUSDC", "type": "sell", "ordertype": "market", "volume": "50"})
+assert "DOGEUSDC" not in kraken.UNIVERSE
+assert shachar.real_holdings({"XXDG": 50.0, "USDC": 1.5}) == (1.5, {"XDG": 50.0})
+print("XDG mapping OK")
 
 # 9. dry fills never count toward live caps
 policy.record("shachar", "dry", 10, "buy")

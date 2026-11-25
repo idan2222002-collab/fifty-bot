@@ -99,7 +99,7 @@ def halted():
     return os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists() or remote_halt()
 
 
-ASSET = {"XXBT": "XBT", "XETH": "ETH", "XXRP": "XRP", "XXDG": "DOGE", "XLTC": "LTC", "ZUSD": "USD"}
+ASSET = {"XXBT": "XBT", "XETH": "ETH", "XXRP": "XRP", "XXDG": "XDG", "XLTC": "LTC", "ZUSD": "USD"}
 RECON_TOL = 0.03
 
 

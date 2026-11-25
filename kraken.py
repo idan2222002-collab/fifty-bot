@@ -6,7 +6,9 @@ import time, hmac, hashlib, base64, urllib.request, urllib.parse, json, glob, os
 
 API = "https://api.kraken.com"
 LIVE_TOKEN = "YES_IDAN_APPROVED"
-UNIVERSE = ["XBTUSDC", "ETHUSDC", "SOLUSDC", "XRPUSDC", "ADAUSDC", "DOGEUSDC", "LINKUSDC", "LTCUSDC"]
+# Kraken altnames. Dogecoin is XDG on Kraken: "DOGEUSDC" resolves to the altname "XDGUSDC", which is the key that
+# pairs(), the tickers and assert_spot() all use.
+UNIVERSE = ["XBTUSDC", "ETHUSDC", "SOLUSDC", "XRPUSDC", "ADAUSDC", "XDGUSDC", "LINKUSDC", "LTCUSDC"]
 DONE = ("closed", "canceled", "expired")
 ALLOWED_KEYS = {"pair", "type", "ordertype", "volume", "price", "oflags", "userref", "validate", "nonce"}
 
@@ -181,15 +183,55 @@ class Kraken:
         assert_spot(data)
         if not live:
             data["validate"] = "true"
-        res = self._priv("/0/private/AddOrder", data)
+        try:
+            res = self._priv("/0/private/AddOrder", data)
+        except RuntimeError:
+            raise                                   # Kraken answered with an error: nothing was placed
+        except Exception as e:
+            if not live:
+                raise
+            return self._lost_reply(data.get("userref"), e)     # no answer: the order may have executed
         out = {"live": live, "descr": res.get("descr", {}).get("order"), "txid": (res.get("txid") or [None])[0]}
         if live and out["txid"]:
+            q = None
             for _ in range(6):
                 time.sleep(min(2, self.POLL))
-                q = self.query_order(out["txid"])
+                try:
+                    q = self.query_order(out["txid"])
+                except Exception:
+                    q = None                        # the order IS placed: a failed status read must not lose the fill
+                    continue
                 if q["status"] in DONE:
                     break
-            out.update(vol=q["vol_exec"], cost=q["cost"], fee=q["fee"], status=q["status"])
+            if q is None:
+                found = self._lost_reply(data.get("userref"), "status read failed", placed=True)
+                out.update(vol=found["vol"], cost=found["cost"], fee=found["fee"], status=found["status"])
+            else:
+                out.update(vol=q["vol_exec"], cost=q["cost"], fee=q["fee"], status=q["status"])
+        return out
+
+    def _lost_reply(self, ref, err, placed=False):
+        """The answer to a market order was lost. Find the order by its userref and report what really executed.
+        Returns status "closed" with the fill, or status "unknown" (the caller halts). Raises only when Kraken
+        confirms that no such order exists, which means nothing was placed."""
+        out = {"live": True, "descr": "reply lost: %s" % str(err)[:60], "txid": None, "vol": 0.0, "cost": 0.0,
+               "fee": 0.0, "status": "unknown"}
+        if not ref:
+            return out
+        for _ in range(3):
+            time.sleep(min(2, self.POLL))
+            try:
+                closed = self._priv("/0/private/ClosedOrders", {"userref": str(ref)}).get("closed", {})
+                still_open = [t for t, o in self.open_orders().items() if str(o.get("userref")) == str(ref)]
+            except Exception:
+                continue
+            if closed:
+                out.update(vol=sum(float(o["vol_exec"]) for o in closed.values()),
+                           cost=sum(float(o["cost"]) for o in closed.values()),
+                           fee=sum(float(o["fee"]) for o in closed.values()), status="closed")
+                return out
+            if not still_open and not placed:
+                raise RuntimeError("order was not placed (no answer and Kraken has no order with this userref)")
         return out
 
     def order_maker(self, pair, side, volume, price, wait=None, userref=None):
