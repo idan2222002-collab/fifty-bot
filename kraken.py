@@ -30,12 +30,14 @@ class Kraken:
             self.key = open(d + "/username").read().strip()
             self.secret = open(d + "/password").read().strip()
         self.info = {}
+        self.keymap = {}
 
     # public
     def pairs(self):
         if not self.info:
             r = _get("/0/public/AssetPairs", {"pair": ",".join(UNIVERSE)})
-            for v in r.values():
+            for rk, v in r.items():
+                self.keymap[rk] = v["altname"]
                 if v.get("status") == "online":
                     self.info[v["altname"]] = {"ordermin": float(v["ordermin"]), "costmin": float(v.get("costmin", 0)),
                                                 "lot_decimals": int(v["lot_decimals"]), "pair_decimals": int(v["pair_decimals"])}
@@ -48,6 +50,18 @@ class Kraken:
             v = list(_get("/0/public/Ticker", {"pair": p}).values())[0]
             out[p] = {"bid": float(v["b"][0]), "ask": float(v["a"][0]), "last": float(v["c"][0]),
                       "open": float(v["o"]), "vol24": float(v["v"][1])}
+        return out
+
+    def tickers_fast(self):
+        """All pairs in ONE public call (about 1 request), for the 1-second scanner."""
+        self.pairs()
+        r = _get("/0/public/Ticker", {"pair": ",".join(self.info)})
+        out = {}
+        for rk, v in r.items():
+            p = self.keymap.get(rk, rk)
+            if p in self.info:
+                out[p] = {"bid": float(v["b"][0]), "ask": float(v["a"][0]), "last": float(v["c"][0]),
+                          "open": float(v["o"]), "vol24": float(v["v"][1])}
         return out
 
     def ohlc(self, pair, interval=60, n=48):
@@ -89,3 +103,21 @@ class Kraken:
             q = self._priv("/0/private/QueryOrders", {"txid": out["txid"]})[out["txid"]]
             out.update(vol=float(q["vol_exec"]), cost=float(q["cost"]), fee=float(q["fee"]), status=q["status"])
         return out
+
+    def stop_order(self, pair, volume, stop_price):
+        """Stop-loss SELL that lives on Kraken itself, so it fires even if this host is down.
+        Without the live token it is only validated (nothing is placed)."""
+        live = live_enabled()
+        info = self.pairs()[pair]
+        data = {"pair": pair, "type": "sell", "ordertype": "stop-loss",
+                "price": ("%." + str(info["pair_decimals"]) + "f") % stop_price,
+                "volume": ("%." + str(info["lot_decimals"]) + "f") % volume}
+        if not live:
+            data["validate"] = "true"
+        res = self._priv("/0/private/AddOrder", data)
+        return {"live": live, "descr": res.get("descr", {}).get("order"), "txid": (res.get("txid") or [None])[0]}
+
+    def cancel(self, txid):
+        if not live_enabled() or not txid:
+            return {"live": False}
+        return self._priv("/0/private/CancelOrder", {"txid": txid})
