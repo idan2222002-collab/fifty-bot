@@ -62,6 +62,11 @@ def protect(k, sc, mode, validate):
                 if g is not None:
                     g["retry_t"] = time.time()
         shachar.jlog({"bot": b["name"], "guard_exit": why, "result": r})
+        if r.startswith("sell"):
+            shachar.alert("sold %s: %s" % (p, why.split(" (")[0]), "%s\nreason: %s" % (r, why), mode)
+        elif not r.startswith("validated"):
+            shachar.alert("exit FAILED on %s" % p, "%s\nreason: %s\nIf a Kraken stop is armed it still protects the position."
+                          % (r, why), mode)
         acts.append((b["name"], p, why, r)); changed = True
     if changed:
         shachar.save(mode, s)
@@ -82,6 +87,7 @@ def shutdown(mode, wait_s=120):
         shachar.save(mode)
     except Exception as e:
         print("final save failed", str(e)[:120])
+    shachar.notify.drain(8)                   # let queued alerts go out before the process ends
     return not shachar.INFLIGHT
 
 
@@ -136,6 +142,9 @@ def main(mode="dry", validate=False):
             print("tick error", str(e)[:120])
             if errs in (5, 60):
                 shachar.jlog({"event": "guard_tick_errors", "count": errs, "last": str(e)[:120]})
+            if errs == 60:
+                shachar.alert("guard is blind", "%d price reads in a row failed: %s\nKraken stop orders still protect open "
+                              "positions." % (errs, str(e)[:120]), mode, always=True)
         n += 1
         if max_ticks and n >= max_ticks:
             stop.set(); break

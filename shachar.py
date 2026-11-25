@@ -8,7 +8,7 @@ Idle time is only informational (no death). Reproduction (dry only): equity >= 2
 Concurrency: one in-memory state per mode, shared by the guard thread and the brain thread. LOCK is held only for
 short state reads/writes, never during exchange I/O. INFLIGHT blocks two orders on the same pair at once."""
 import os, json, sys, time, pathlib, threading, zlib, urllib.request, urllib.error, math
-import kraken, news, brain, policy
+import kraken, news, brain, policy, notify
 
 HERE = pathlib.Path(__file__).parent
 FEE = 0.008               # Kraken Pro tier 1 spot taker 0.80% (official fee page)
@@ -68,12 +68,25 @@ def jlog(rec):
             f.write(json.dumps(rec) + "\n")
 
 
+def alert(title, body="", mode="live", always=False):
+    """Tell the owner. Always written to the journal; sent as a GitHub issue for live events and for anything marked
+    `always` (a HALT, a death, a blind guard), so paper trades do not fill the owner's inbox. Never blocks."""
+    try:
+        jlog({"event": "alert", "title": title, "body": str(body)[:300], "sent": bool(always or mode == "live")})
+        if always or mode == "live":
+            notify.alert(title, body)
+    except Exception:
+        pass
+
+
 def write_halt(why):
     try:
         (HERE / "HALT").write_text("%s at %s\n" % (why, time.strftime("%F %T")))
     except Exception:
         pass
     jlog({"event": "halt", "why": why})
+    alert("HALT: " + why.split(":")[0][:70], "%s\n\nNo new buys until the HALT file is removed from the `state` branch. "
+          "Open positions keep their stops and the guard keeps selling at stop, take-profit and time stop." % why, always=True)
 
 
 _RH = {"t": 0.0, "v": False}
@@ -522,6 +535,9 @@ def ensure_stop(k, b, p, mode, validate):
             if old and live:
                 g["stop_txid"] = None
         jlog({"bot": b["name"], "stop_order_error": str(e)[:150]})
+        if live:
+            alert("no Kraken stop on %s" % p, "The stop-loss order could not be placed: %s\nThe guard still watches the "
+                  "position while the host runs; it retries in 5 minutes." % str(e)[:150], mode)
 
 
 def sync_stops(k, mode, tk):
@@ -546,6 +562,8 @@ def sync_stops(k, mode, tk):
                     if q["vol_exec"] > 0:
                         apply_sell(b, p, q["vol_exec"], q["cost"], q["fee"], tk)
                         jlog({"bot": b["name"], "event": "stop_fired_by_kraken", "pair": p, "qty": q["vol_exec"], "cost": q["cost"]})
+                        alert("stop fired on %s" % p, "Kraken executed the stop-loss: sold %.8f for %.2f USDC (fee %.3f)." % (
+                            q["vol_exec"], q["cost"], q["fee"]), mode, )
                     save(mode, s)
     with LOCK:
         pairs = [(b, p) for b in s["bots"].values() for p in list(b["pos"])]

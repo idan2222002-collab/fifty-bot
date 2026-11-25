@@ -283,6 +283,40 @@ assert guard.shutdown("live", wait_s=0.3) is False   # it does not hang forever 
 shachar.INFLIGHT.clear(); kraken.ABORT.clear()
 print("shutdown waits and saves OK")
 
+# 18. alerts: the owner is told about a HALT, a fired stop and guard exits; an alert never blocks and never raises
+import notify
+_out = []
+_real_send = notify._send
+notify._send = lambda title, body: (_out.append((title, body)), "sent")[1]
+def alerts():
+    assert notify.drain(5)
+    got = [t for t, _ in _out]; _out.clear(); return got
+notify._sent.clear()
+k, ex, s, b = holding()
+t = [t for t, o in ex.orders.items() if o["otype"] == "stop-loss"][0]
+o = ex.orders[t]; ex.fill(o, o["vol"], 97.0); o["status"] = "closed"
+shachar.sync_stops(k, "live", TK)
+assert alerts() == ["stop fired on XBTUSDC"]
+shachar.write_halt("reconcile mismatch: XBT kraken 0.1 vs ledger 0.0")
+shachar.write_halt("reconcile mismatch: XBT kraken 0.2 vs ledger 0.0")      # same kind again: not sent twice
+assert alerts() == ["HALT: reconcile mismatch"]
+(shachar.HERE / "HALT").unlink()
+shachar.alert("sold XBTUSDC: stop hit", "paper", mode="dry")                 # paper trades do not reach the inbox...
+shachar.alert("guard is blind", "x", mode="dry", always=True)                # ...but a blind guard does, in any mode
+assert alerts() == ["guard is blind"]
+notify._sent.clear()
+def _slow_and_broken(title, body):
+    _time.sleep(0.4); raise OSError("github is down")
+notify._send = _slow_and_broken
+t0 = _time.time()
+assert notify.alert("anything") is True and _time.time() - t0 < 0.1          # the caller never waits for the network
+assert notify.drain(5) and notify.LAST["result"].startswith("failed")        # and a failure is only reported
+notify._send = _real_send
+os.environ.pop("GH_TOKEN", None)
+notify._sent.clear(); notify.alert("no token"); assert notify.drain(5) and notify.LAST["result"].startswith("not configured")
+notify._sent.clear()
+print("alerts OK")
+
 # 9. dry fills never count toward live caps
 policy.record("shachar", "dry", 10, "buy")
 assert policy._count("shachar", "live") == 0 or True
