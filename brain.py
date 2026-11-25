@@ -32,7 +32,7 @@ def _knowledge():
 def _key():
     if LLM_KEY_FILE and os.path.exists(LLM_KEY_FILE):
         return open(LLM_KEY_FILE).read().strip()
-    return None
+    return os.environ.get("LLM_KEY") or None
 
 
 def ask_llm(ctx):
