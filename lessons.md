@@ -30,3 +30,5 @@
 - 2026-11-25 [shachar] LTC shows >6% 6h gain with tight spread, giving a fee‑positive edge for a modest position
 - 2026-11-25 [shachar] LTC shows >6% 6h gain, low spread, fee‑positive edge; buying modest size with 3% stop and 5% target fits risk limits
 - 2026-11-25 [shachar] locked in modest BTC gain to free cash for higher upside opportunities like LTC momentum
+- 2026-11-25 [shachar] LTC 6h gain >5% with low spread, meets fee‑positive edge; buy modest size with 3% stop and 5% target
+- 2026-11-25 [shachar] use clear short‑term price moves that exceed fee cost; keep cash reserve for future ops
