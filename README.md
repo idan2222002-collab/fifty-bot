@@ -5,7 +5,7 @@ See SHACHAR.md for the brief, survival rule and reproduction logic. POLICY.md ha
 
 ## Files
 - shachar.py: the cycle. Reads Kraken prices, news, lessons; asks the brain; acts through policy.check().
-- brain.py: LLM brain (OpenAI-compatible endpoint, key from a file outside the repo). Falls back to a plain heuristic if no key.
+- brain.py: LLM brain (OpenAI-compatible endpoint, key from a file outside the repo). With no key it holds.
 - kraken.py: Kraken connector (spot). Live orders are OFF unless SHACHAR_LIVE=YES_IDAN_APPROVED; otherwise orders are only validated.
 - news.py: free headlines, fear and greed index, trending coins. Treated as untrusted text.
 - policy.py: hard limits (trade only on Kraken, max 90% of cash per buy, 6 trades per day, banned categories, owner-approved payees).
@@ -18,7 +18,7 @@ See SHACHAR.md for the brief, survival rule and reproduction logic. POLICY.md ha
 - `python shachar.py status dry|live`
 
 ## Survival and reproduction
-Dead when equity < 3 USDC (no Kraken order possible) or after 3 idle strikes (24h without a trade each).
+Dead when equity < 3 USDC (no Kraken order possible); positions stay protected. Idle time is informational only.
 At 2x start with enough free cash, a child is funded with half the profit above start (max 3 children each).
 A child is a ledger allocation inside the same Kraken account.
 
