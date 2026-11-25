@@ -1,33 +1,38 @@
 """Always-on loop. Fast layer: every second it reads prices (scanner) and protects open positions
-(stop, trailing stop, take-profit, hard equity stop, survival check). It never opens a position.
+(stop, trailing stop, take-profit, time stop, drawdown breaker). It never opens a position.
 Slow layer: every BRAIN_EVERY seconds it runs one brain cycle (LLM) in a background thread.
   python guard.py dry                 simulated ledger, no orders at all
   python guard.py dry --validate      also validates orders with Kraken (nothing is placed)
   python guard.py live                refuses to place real orders unless SHACHAR_LIVE=YES_IDAN_APPROVED
-Env: BRAIN_EVERY (seconds, default 300), TICK (seconds, default 1), MAX_TICKS (for tests)."""
+Env: BRAIN_EVERY (seconds, default 300), TICK (seconds, default 2), MAX_TICKS (for tests)."""
 import sys, os, time, threading, json, traceback
 import kraken, scanner, shachar
 
 TRAIL_START, TRAIL_PCT = 0.04, 0.02        # after +4% the stop trails 2% under the high, so a trailing exit nets above the 1.6% fees
-HARD_EQUITY_STOP = 0.4                     # equity below 40% of start: sell everything to USDC
+DRAWDOWN_HALT = 0.20                       # equity 20% below its peak: write HALT (no new buys). No sell-all: stops keep protecting.
 BRAIN_EVERY = int(os.environ.get("BRAIN_EVERY", "300"))
 MAX_HOLD_H = 48                            # time stop
-TICK = float(os.environ.get("TICK", "1"))
+TICK = float(os.environ.get("TICK", "2"))
+RETRY_S = 10                               # wait after a failed exit before trying that pair again
+SAVE_EVERY_S = 300
 
 
 def protect(k, sc, mode, validate):
-    """One guard pass. Returns a list of actions taken."""
-    acts = []
+    """One guard pass. Decides exits under LOCK, then executes them WITHOUT holding LOCK. Returns actions taken."""
+    acts, todo = [], []
     tk = sc.tk
     with shachar.LOCK:
         s = shachar.load(mode, shachar.DRY_START)
         changed = False
         for b in s["bots"].values():
-            if not b["alive"] or not b["pos"]:
-                continue
+            if not b["pos"]:
+                continue                      # dead bots with positions are still protected
             gd = b.setdefault("guards", {})
             eq = shachar.equity(b, tk)
-            hard = eq < b["start"] * HARD_EQUITY_STOP
+            if eq > b.get("peak", b["start"]):
+                b["peak"] = eq
+            if eq < b.get("peak", b["start"]) * (1 - DRAWDOWN_HALT) and not (shachar.HERE / "HALT").exists():
+                shachar.write_halt("drawdown breaker: equity %.2f is >%d%% below peak %.2f" % (eq, DRAWDOWN_HALT * 100, b["peak"]))
             for p in list(b["pos"]):
                 if p not in tk:
                     continue
@@ -40,21 +45,26 @@ def protect(k, sc, mode, validate):
                     if ns > g["stop"]:
                         g["stop"] = ns; changed = True
                 why = None
-                if hard:
-                    why = "hard equity stop (equity %.2f < %d%% of start)" % (eq, HARD_EQUITY_STOP * 100)
-                elif px <= g["stop"]:
+                if px <= g["stop"]:
                     why = "stop hit (%.4f <= %.4f)" % (px, g["stop"])
                 elif g.get("t") and time.time() - g["t"] > MAX_HOLD_H * 3600:
                     why = "time stop (held more than %dh)" % MAX_HOLD_H
                 elif px >= g["take"]:
                     why = "take-profit hit (%.4f >= %.4f)" % (px, g["take"])
-                if why:
-                    r = shachar.execute(k, s, b, {"action": "sell", "pair": p, "fraction": 1.0, "reason": "guard: " + why},
-                                        tk, mode, validate)
-                    shachar.jlog({"bot": b["name"], "guard_exit": why, "result": r})
-                    acts.append((b["name"], p, why, r)); changed = True
-        if changed:
-            shachar.sfile(mode).write_text(json.dumps(s, indent=1))
+                if why and time.time() - g.get("retry_t", 0) >= RETRY_S:
+                    todo.append((b, p, why))
+    for b, p, why in todo:
+        r = shachar.execute(k, s, b, {"action": "sell", "pair": p, "fraction": 1.0, "reason": "guard: " + why},
+                            tk, mode, validate, internal=True)
+        if not r.startswith("sell"):
+            with shachar.LOCK:
+                g = b.get("guards", {}).get(p)
+                if g is not None:
+                    g["retry_t"] = time.time()
+        shachar.jlog({"bot": b["name"], "guard_exit": why, "result": r})
+        acts.append((b["name"], p, why, r)); changed = True
+    if changed:
+        shachar.save(mode, s)
     return acts
 
 
@@ -68,13 +78,15 @@ def brain_loop(sc, mode, validate, stop):
 
 
 def main(mode="dry", validate=False):
-    k = kraken.Kraken()
+    k = kraken.get()
     sc = scanner.Scanner(k)
     stop = threading.Event()
     sc.tick()
+    if mode == "live" and kraken.live_enabled():
+        shachar.boot_sync(k, shachar.load(mode, 0.0), sc.tk, mode)
     if os.environ.get("NO_BRAIN") != "1":
         threading.Thread(target=brain_loop, args=(sc, mode, validate, stop), daemon=True).start()
-    n, errs = 0, 0
+    n, errs, last_save = 0, 0, time.time()
     max_ticks = int(os.environ.get("MAX_TICKS", "0"))
     while True:
         t0 = time.time()
@@ -84,9 +96,12 @@ def main(mode="dry", validate=False):
                 print("GUARD", a)
             if n % 10 == 0:
                 sc.dump()
-            if mode == "live" and kraken.live_enabled() and n % 600 == 599:
-                with shachar.LOCK:
-                    shachar.reconcile(k, shachar.load(mode, 0.0), sc.tk)
+            if mode == "live" and kraken.live_enabled() and n % 30 == 15:
+                shachar.sync_stops(k, mode, sc.tk)
+            if mode == "live" and kraken.live_enabled() and n % 300 == 299:
+                shachar.reconcile(k, shachar.load(mode, 0.0), sc.tk)
+            if time.time() - last_save > SAVE_EVERY_S:
+                shachar.save(mode); last_save = time.time()
             errs = 0
         except Exception as e:
             errs += 1
