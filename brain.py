@@ -2,8 +2,8 @@
 If no LLM key is available it falls back to a plain heuristic and says so in the journal."""
 import json, os, urllib.request, re
 
-LLM_URL = os.environ.get("LLM_URL", "https://models.github.ai/inference/chat/completions")
-LLM_MODEL = os.environ.get("LLM_MODEL", "meta/Llama-3.3-70B-Instruct")
+LLM_URL = os.environ.get("LLM_URL", "https://api.groq.com/openai/v1/chat/completions")
+LLM_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
 LLM_KEY_FILE = os.environ.get("LLM_KEY_FILE", "")
 
 SYSTEM = """You are Shachar (שחר), an autonomous bot. You were given a small stake of USDC on Kraken (spot only).
@@ -19,6 +19,13 @@ Reply with ONE JSON object and nothing else:
 "idea" = propose a non-trading plan (store, service, etc). It is only logged for the owner; it does not run."""
 
 
+def _knowledge():
+    try:
+        return open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "knowledge.md"), encoding="utf-8").read()
+    except Exception:
+        return ""
+
+
 def _key():
     if LLM_KEY_FILE and os.path.exists(LLM_KEY_FILE):
         return open(LLM_KEY_FILE).read().strip()
@@ -30,7 +37,7 @@ def ask_llm(ctx):
     if not k:
         return None
     body = {"model": LLM_MODEL, "temperature": 0.4, "max_tokens": 400,
-            "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(ctx)}]}
+            "messages": [{"role": "system", "content": SYSTEM + "\n\n" + _knowledge()}, {"role": "user", "content": json.dumps(ctx)}]}
     req = urllib.request.Request(LLM_URL, data=json.dumps(body).encode(),
                                  headers={"Authorization": "Bearer " + k, "Content-Type": "application/json",
                                           "User-Agent": "shachar"})
