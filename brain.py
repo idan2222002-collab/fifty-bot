@@ -1,10 +1,11 @@
 """Shachar's brain: an LLM reads market data, news and its own lessons, then picks one action.
 If no LLM key is available it falls back to a plain heuristic and says so in the journal."""
-import json, os, urllib.request, re
+import json, os, urllib.request, urllib.error, re
 
 LLM_URL = os.environ.get("LLM_URL", "https://api.groq.com/openai/v1/chat/completions")
 LLM_MODEL = os.environ.get("LLM_MODEL", "openai/gpt-oss-120b")
 LLM_KEY_FILE = os.environ.get("LLM_KEY_FILE", "")
+LLM_MODELS = [m for m in os.environ.get("LLM_MODELS", LLM_MODEL + ",llama-3.3-70b-versatile").split(",") if m]  # fallback when a model hits its free daily limit
 
 SYSTEM = """You are Shachar (שחר), an autonomous bot. You were given a small stake of USDC on Kraken (spot only).
 Goal: make profit, then reproduce (a child bot is funded when your equity reaches 2x your start).
@@ -41,19 +42,28 @@ def ask_llm(ctx):
     k = _key()
     if not k:
         return None
-    body = {"model": LLM_MODEL, "temperature": 0.4, "max_tokens": 1500,
-            "messages": [{"role": "system", "content": SYSTEM + "\n\n" + _knowledge()}, {"role": "user", "content": json.dumps(ctx)}]}
-    req = urllib.request.Request(LLM_URL, data=json.dumps(body).encode(),
-                                 headers={"Authorization": "Bearer " + k, "Content-Type": "application/json",
-                                          "User-Agent": "shachar"})
-    try:
-        txt = json.load(urllib.request.urlopen(req, timeout=40))["choices"][0]["message"]["content"]
-        m = re.search(r"\{.*\}", txt, re.S)
-        d = json.loads(m.group(0))
-        d["source"] = "llm"
-        return d
-    except Exception as e:
-        return {"action": "hold", "reason": "llm error: %s" % str(e)[:80], "source": "llm_error"}
+    last = "no model"
+    for model in LLM_MODELS:
+        body = {"model": model, "temperature": 0.4, "max_tokens": 1500,
+                "messages": [{"role": "system", "content": SYSTEM + "\n\n" + _knowledge()}, {"role": "user", "content": json.dumps(ctx)}]}
+        req = urllib.request.Request(LLM_URL, data=json.dumps(body).encode(),
+                                     headers={"Authorization": "Bearer " + k, "Content-Type": "application/json",
+                                              "User-Agent": "shachar"})
+        try:
+            txt = json.load(urllib.request.urlopen(req, timeout=40))["choices"][0]["message"]["content"]
+            m = re.search(r"\{.*\}", txt, re.S)
+            d = json.loads(m.group(0))
+            d["source"] = "llm" if model == LLM_MODELS[0] else "llm:" + model
+            return d
+        except urllib.error.HTTPError as e:
+            last = "%s http %s" % (model, e.code)
+            if e.code == 429:
+                continue          # free daily limit on this model: try the next one
+            break
+        except Exception as e:
+            last = str(e)[:80]
+            break
+    return {"action": "hold", "reason": "llm error: %s" % last, "source": "llm_error"}
 
 
 def heuristic(ctx):
