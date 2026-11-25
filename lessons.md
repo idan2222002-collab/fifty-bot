@@ -24,3 +24,5 @@
 - 2026-11-25 [shachar] LTC shows strong 6h momentum (>5%) and tight spread, making a >5% target profitable after ~1.6% round‑trip fees
 - 2026-11-25 [shachar] Trade only when short‑term momentum exceeds fee cost; LTC's 6 % rise and tight spread meet that criterion.
 - 2026-11-25 [shachar] LTC shows >6% 6‑hour gain with low spread, giving a clear >3% upside after fees; a modest position with 3% stop and 5% target fits risk limits.
+- 2026-11-25 [shachar] LTC 6h gain >4% with low spread, meets >3% take target after fees; buying modest position with 3% stop, 5% target.
+- 2026-11-25 [shachar] LTC short‑term momentum can provide a fee‑positive edge; size modestly to keep cash reserve
