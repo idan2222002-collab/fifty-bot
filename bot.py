@@ -1,6 +1,6 @@
 """fifty-bot: Phase 0 paper mode. Stdlib only. No real money, no keys.
 Run: python bot.py tick   (one decision step)   python bot.py status
-Each bot has a ledger in state.json. Bot dies at 0. At SPAWN_AT it funds a child
+Brain name: Shachar. Each bot has a ledger in state.json. Bot dies at 0. At SPAWN_AT it funds a child
 with PROFIT ONLY (never the original stake). Costs are simulated conservatively.
 """
 import json, sys, time, urllib.request, pathlib
@@ -25,12 +25,13 @@ def prices():
 def load():
     if STATE.exists():
         return json.loads(STATE.read_text())
-    return {"bots": {"gen0-a": newbot("gen0-a", START_ILS, "momentum", None)}, "hist": {}, "log": []}
+    return {"bots": {"shachar": newbot("shachar", START_ILS, "momentum", None)}, "hist": {}, "log": []}
 
 
 def newbot(name, cash, strat, parent):
     return {"name": name, "alive": True, "cash": cash, "start": cash, "pos": {}, "strategy": strat,
-            "parent": parent, "children": [], "born": time.time(), "fees": 0.0}
+            "parent": parent, "children": [], "born": time.time(), "fees": 0.0,
+            "last_action": time.time(), "idle_strikes": 0}
 
 
 def equity(b, px):
@@ -51,10 +52,15 @@ def signal(strat, hist):
     return best
 
 
+IDLE_HOURS = 24          # no action for this long = one idle strike
+MAX_IDLE_STRIKES = 3     # hoarding the stake to stay alive is not allowed: 3 strikes and the bot dies
+
+
 def trade(b, px, want):
     held = next(iter(b["pos"]), None)
     if held == want:
         return
+    b["last_action"] = time.time(); b["idle_strikes"] = 0
     if held:                                      # sell
         v = b["pos"].pop(held) * px[held] * (1 - FEE)
         b["fees"] += v * FEE / (1 - FEE)
@@ -75,6 +81,11 @@ def tick():
             continue
         trade(b, px, signal(b["strategy"], s["hist"]))
         eq = equity(b, px)
+        if time.time() - b["last_action"] > IDLE_HOURS * 3600:
+            b["idle_strikes"] += 1; b["last_action"] = time.time()
+            s["log"].append("%s idle strike %d" % (b["name"], b["idle_strikes"]))
+            if b["idle_strikes"] >= MAX_IDLE_STRIKES:
+                eq = 0.0
         if eq <= 0.5:                             # death rule
             b["alive"] = False; b["pos"] = {}; b["cash"] = 0.0
             s["log"].append("%s DIED at %s" % (b["name"], time.strftime("%F %T")))
