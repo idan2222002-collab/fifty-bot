@@ -5,3 +5,5 @@
 - 2026-11-25 [shachar] choose high‑liquidity, low‑spread pair with clear short‑term trend to justify fees
 - 2026-11-25 [shachar] sell positions that have achieved their short‑term momentum to lock profit and prevent fee‑draining idle time
 - 2026-11-25 [shachar] use modest position size on clear short‑term momentum to avoid large fee drag
+- 2026-11-25 [shachar] avoided unnecessary trade to preserve capital and prevent fee drag
+- 2026-11-25 [shachar] use modest position size on clear short‑term momentum to avoid large fee drag
