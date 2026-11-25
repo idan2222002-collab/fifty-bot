@@ -288,3 +288,33 @@ class _KO:
     def ohlc_full(self, pair): return _up
 assert shachar.replay_rows(_KC(), "XBTUSDC") is _wicky and shachar.replay_rows(_KO(), "XBTUSDC") is _up
 print("REPLAY ON HIGHS AND LOWS TESTS PASSED")
+
+# the order uses the newest prices, not the ones read before the brain was asked
+import tempfile as _tf5, pathlib as _pl5, time as _t5, brain as _brain5, news as _news5, policy as _pol5
+shachar.HERE = _pol5.HERE = _pl5.Path(_tf5.mkdtemp())
+shachar.INFLIGHT.clear()
+
+
+class FKP(FK):
+    def tickers(self): return {"XBTUSDC": {"bid": 100.0, "ask": 100.05, "last": 100.0, "open": 100.0, "vol24": 1e6}}
+    def ohlc(self, p, interval=60, n=48): return [[100.0] * 48]
+    def ohlc_full(self, p, interval=60): return [100.0] * 300
+    def usdc_peg(self): return 1.0
+    def depth(self, p, count=25): return {"bid_usd_0.5pct": 1, "ask_usd_0.5pct": 1, "imbalance": 0.0}
+
+
+_newer = {"XBTUSDC": {"bid": 98.0, "ask": 98.05, "last": 98.0, "open": 100.0, "vol24": 1e6}}    # the market fell 2% meanwhile
+_rd, _rf = _brain5.decide, _news5.fear_greed
+_brain5.decide = lambda ctx: {"action": "buy", "pair": "XBTUSDC", "usdc": 5, "take_pct": 5, "stop_pct": 3, "source": "llm"}
+_news5.fear_greed = lambda: None
+for _fresh, _want in ((None, 100.0), (lambda: _newer, 98.0), (lambda: {}, 100.0)):
+    bf = {"name": "tf", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0,
+          "last_action": _t5.time(), "children": []}
+    shachar._STATE["dry"] = {"bots": {"tf": bf}, "log": []}
+    _lf5 = _pol5.logfile("dry")
+    if _lf5.exists(): _lf5.unlink()
+    shachar.cycle("dry", k=FKP(), fresh_tk=_fresh)
+    assert abs(bf["guards"]["XBTUSDC"]["entry"] - _want) < 1e-9, (bf, _want)     # entry at the newest bid when there is one
+_brain5.decide, _news5.fear_greed = _rd, _rf
+shachar._STATE.pop("dry")
+print("FRESH PRICE FOR THE ORDER TESTS PASSED")

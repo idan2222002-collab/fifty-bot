@@ -197,6 +197,28 @@ def holding():
     return k, ex, s, b
 
 
+# 9b. Kraken refuses the maker entry (the price moved, the post-only bid would cross): a missed entry, NOT a HALT
+k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
+_lf = policy.logfile("live")
+if _lf.exists(): _lf.unlink()
+orig = ex.priv
+_refuse = [True]
+def post_only_cross(path, data):
+    if path.endswith("AddOrder") and data["ordertype"] == "limit" and _refuse[0]:
+        raise RuntimeError("kraken: ['EOrder:Post only order']")
+    return orig(path, data)
+k._priv = post_only_cross
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert "refused by Kraken" in r and not (shachar.HERE / "HALT").exists(), r      # was: HALT until someone clears it
+assert not b["pos"] and b["cash"] == 40.0 and not ex.orders and b["trades"] == 0
+_refuse[0] = False
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert r.startswith("buy"), r                                                    # the bot can still trade afterwards
+k, ex = mk(); s, b = bot(); ex.timeout_after_add = True
+r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
+assert (shachar.HERE / "HALT").exists() and "HALT" in r, r                       # no answer at all still halts
+print("Kraken refusal is not a HALT OK")
+
 # 10. a market sell that executed is booked even when reading its status fails (was: "sell failed" + phantom position)
 SELL = {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "guard"}
 k, ex, s, b = holding()

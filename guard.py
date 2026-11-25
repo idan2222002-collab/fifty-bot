@@ -88,7 +88,7 @@ def shutdown(mode, wait_s=120):
 def brain_loop(sc, mode, validate, stop):
     while not stop.is_set():
         try:
-            shachar.cycle(mode, validate, scan=sc.summary())
+            shachar.cycle(mode, validate, scan=sc.summary(), fresh_tk=lambda: sc.tk)
         except Exception:
             shachar.jlog({"event": "brain_error", "err": traceback.format_exc()[-300:]})
         stop.wait(BRAIN_EVERY)
