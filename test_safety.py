@@ -121,3 +121,40 @@ bm = {"name": "t6", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees
 r = shachar.execute(FK(), {"bots": {"t6": bm}}, bm, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
 assert r.startswith("buy") and abs(bm["fees"] - 10 * 0.995 * 0.005 / 0.995) < 0.5 and bm["cash"] >= 0, (r, bm)
 print("MAKER / BACKTEST TESTS PASSED")
+
+# paper maker entries (guard.py turns PAPER_PENDING on): a bid fills only when the market trades through it
+import tempfile, pathlib, time, policy
+_tmp = pathlib.Path(tempfile.mkdtemp())
+shachar.HERE = policy.HERE = _tmp                         # keep this block's journal and trade log out of the repo
+shachar.PAPER_PENDING = True
+bp = {"name": "tp", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
+shachar._STATE["dry"] = {"bots": {"tp": bp}, "log": []}
+shachar.INFLIGHT.clear()
+tkp = {"XBTUSDC": {"bid": 100.0, "ask": 100.05, "last": 100.0, "open": 100.0, "vol24": 1e6}}
+PB = {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5, "stop_pct": 3}
+def ptk(**kw): return {"XBTUSDC": dict(tkp["XBTUSDC"], **kw)}
+r = shachar.execute(FK(), shachar._STATE["dry"], bp, dict(PB), tkp, "dry", False)
+assert r.startswith("paper maker order working") and not bp["pos"] and bp["cash"] == 40.0 and bp["trades"] == 0, (r, bp)
+r = shachar.execute(FK(), shachar._STATE["dry"], bp, dict(PB), tkp, "dry", False)
+assert "already working" in r, r                                           # one resting entry at a time
+assert shachar.fill_pending(tkp, "dry") == [] and bp.get("pending")        # nothing traded: still resting
+assert shachar.fill_pending(ptk(bid=101.0, ask=101.05, last=101.0), "dry") == []   # price ran away: no fill, no chase
+out = shachar.fill_pending(ptk(bid=99.95, ask=100.0, last=100.0), "dry")           # the ask came down to our bid
+vol = bp["pos"]["XBTUSDC"]
+assert out[0][1].startswith("buy") and "pending" not in bp and bp["trades"] == 1, (out, bp)
+assert abs(bp["cash"] - (40.0 - vol * 100.0 * (1 + shachar.MAKER_FEE))) < 1e-9 and bp["cash"] >= 0, bp
+assert abs(bp["guards"]["XBTUSDC"]["stop"] - 97.0) < 1e-9 and abs(bp["guards"]["XBTUSDC"]["take"] - 105.0) < 1e-9
+bp["pos"].clear(); bp["guards"].clear(); cash0 = bp["cash"]
+shachar.execute(FK(), shachar._STATE["dry"], bp, dict(PB), tkp, "dry", False)
+out = shachar.fill_pending(ptk(last=99.9), "dry")                          # a new trade printed below our bid: filled
+assert out[0][1].startswith("buy") and bp["pos"], out
+bp["pos"].clear(); bp["guards"].clear(); cash0 = bp["cash"]
+shachar.execute(FK(), shachar._STATE["dry"], bp, dict(PB), tkp, "dry", False)
+bp["pending"]["t"] = time.time() - kraken.Kraken.MAKER_WAIT - 1
+out = shachar.fill_pending(tkp, "dry")                                     # 90s passed with no trade through: expired
+assert "not filled" in out[0][1] and "pending" not in bp and not bp["pos"] and bp["cash"] == cash0, (out, bp)
+shachar.PAPER_PENDING = False
+r = shachar.execute(FK(), shachar._STATE["dry"], bp, dict(PB), tkp, "dry", False)
+assert r.startswith("buy"), r                                              # default (single cycle, tests): instant fill
+shachar._STATE.pop("dry")
+print("PAPER MAKER FILL TESTS PASSED")

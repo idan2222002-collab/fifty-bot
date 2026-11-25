@@ -21,6 +21,8 @@ INFLIGHT = set()
 LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
 DRY_SIZE_CAP = 0.9
 MIN_RR = 1.5              # take_pct / stop_pct must be at least this
+PAPER_PENDING = False     # paper mode: True = a maker entry waits for the market to trade through it (guard.py turns
+                          # it on, because only the always-on loop can watch the order). False = instant fill.
 
 
 def sfile(mode):
@@ -338,6 +340,8 @@ def _plan(k, b, d, tk, mode, internal, risk):
     if act == "buy":
         if not b["alive"]:
             raise Refuse("refused: bot is dead, no new buys")
+        if b.get("pending"):
+            raise Refuse("refused: an entry order is already working")
         usdc = num(d.get("usdc"))
         if not usdc:
             raise Refuse("refused: usdc amount missing or invalid")
@@ -549,8 +553,14 @@ def execute(k, s, b, d, tk, mode, validate, internal=False, risk=False):
                     jlog({"bot": b["name"], "validated": r["descr"]})
                 except Exception as e:
                     jlog({"bot": b["name"], "validate_error": str(e)[:120]})
+            if act == "buy" and PAPER_PENDING:
+                with LOCK:          # like the real post-only bid: it rests, and fill_pending() decides its fate
+                    b["pending"] = {"p": p, "vol": vol, "price": tk[p]["bid"], "last0": tk[p]["last"],
+                                    "stop": plan["stop"], "take": plan["take"], "t": time.time()}
+                return "paper maker order working: buy %s %.6f @ %.4f (fills only if the market trades through it within %ds)" % (
+                    p, vol, tk[p]["bid"], kraken.Kraken.MAKER_WAIT)
             maker = act == "buy"
-            cost = vol * tk[p]["bid"]       # dry fills are optimistic: a maker buy fills at the bid at once
+            cost = vol * tk[p]["bid"]       # instant paper fill (single `cycle` runs and tests): optimistic
             res = {"fills": [(vol, cost, cost * (MAKER_FEE if maker else FEE))], "side": act}
         with LOCK:
             msg = ""
@@ -578,6 +588,42 @@ def execute(k, s, b, d, tk, mode, validate, internal=False, risk=False):
     finally:
         with LOCK:
             INFLIGHT.discard(key)
+
+
+def fill_pending(tk, mode):
+    """Paper mode only. A maker entry is a resting bid: it fills only if the market really trades through it within
+    MAKER_WAIT seconds (the ask comes down to our price, or a NEW trade prints below it); otherwise it expires with no
+    trade, exactly like the live order that is cancelled and never chased. Without this the paper ledger fills every
+    entry at once and in full, which flatters the results. Returns [(bot, message)]."""
+    out = []
+    with LOCK:
+        s = load(mode, DRY_START)
+        for b in s["bots"].values():
+            pd = b.get("pending")
+            if not pd:
+                continue
+            t = tk.get(pd["p"])
+            through = bool(t) and (t["ask"] <= pd["price"] or (t["last"] != pd["last0"] and t["last"] < pd["price"]))
+            if through and b["alive"]:
+                b.pop("pending")
+                cost = pd["vol"] * pd["price"]
+                fee = cost * MAKER_FEE
+                if cost + fee > b["cash"]:
+                    msg = "paper entry dropped: not enough cash"
+                else:
+                    _apply_buy(b, pd, pd["vol"], cost, fee)
+                    policy.record(b["name"], mode, cost, "buy")
+                    msg = "buy %s %.6f @ ~%.4f (fee %.3f)" % (pd["p"], pd["vol"], pd["price"], fee)
+            elif time.time() - pd["t"] > kraken.Kraken.MAKER_WAIT or not b["alive"]:
+                b.pop("pending")
+                msg = "paper maker entry not filled in time, cancelled, no trade (no chasing)"
+            else:
+                continue
+            out.append((b["name"], msg))
+            jlog({"bot": b["name"], "paper_entry": msg})
+        if out:
+            save(mode, s)
+    return out
 
 
 def cycle(mode, validate=False, scan=None, k=None):
@@ -621,7 +667,7 @@ def cycle(mode, validate=False, scan=None, k=None):
                    "me": {"name": b["name"], "cash": round(b["cash"], 2), "positions": {p: round(q, 6) for p, q in b["pos"].items()},
                           "equity": round(eq, 2), "start": round(b["start"], 2), "profit": round(profit, 2),
                           "hours_since_last_trade": round((time.time() - b["last_action"]) / 3600, 1),
-                          "trades_total": b["trades"], "death_floor": DEATH_FLOOR,
+                          "trades_total": b["trades"], "death_floor": DEATH_FLOOR, "working_entry": b.get("pending"),
                           "reproduction": ("ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)") if mode != "live" else "off in live"},
                    "cooldown_pairs": [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]}
             positions = [p for p in b["pos"] if p in tk]
