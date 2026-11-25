@@ -34,3 +34,5 @@
 - 2026-11-25 [shachar] use clear short‑term price moves that exceed fee cost; keep cash reserve for future ops
 - 2026-11-25 [shachar] Allocate modest cash to high‑momentum, low‑spread assets while keeping reserve for future ops
 - 2026-11-25 [shachar] Modest size trade on a low‑spread, 4‑5% 6h up move gives a fee‑positive edge; keep stop tight to protect capital.
+- 2026-11-25 [shachar] Allocate modest cash to high‑momentum, low‑spread assets; use tight stop to protect capital
+- 2026-11-25 [shachar] 6h price gain >5% with low spread gives fee‑positive edge; allocate modest cash while keeping reserve
