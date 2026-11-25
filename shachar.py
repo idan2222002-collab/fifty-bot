@@ -3,29 +3,50 @@
   python shachar.py cycle dry --validate   also sends each order to Kraken with validate=true (no order is placed)
   python shachar.py cycle live       real orders. Refuses unless SHACHAR_LIVE=YES_IDAN_APPROVED
   python shachar.py status [dry|live]
-Survival: equity < DEATH_FLOOR = dead. 24h without a trade = idle strike, 3 strikes = dead.
-Reproduction: equity >= 2x start and enough free cash = child funded with half of the profit."""
-import os, json, sys, time, pathlib, threading
+Survival: equity < DEATH_FLOOR = dead (positions are kept and still protected, new buys stop).
+Idle time is only informational (no death). Reproduction (dry only): equity >= 2x start and enough free cash.
+Concurrency: one in-memory state per mode, shared by the guard thread and the brain thread. LOCK is held only for
+short state reads/writes, never during exchange I/O. INFLIGHT blocks two orders on the same pair at once."""
+import os, json, sys, time, pathlib, threading, zlib, urllib.request, urllib.error, math
 import kraken, news, brain, policy
 
 HERE = pathlib.Path(__file__).parent
-FEE = 0.008               # market order fee per side (Kraken Pro entry tier taker, pessimistic)
+FEE = 0.008               # market order fee per side (pessimistic)
 DEATH_FLOOR = 3.0         # USDC. Below this no Kraken order is possible, so the bot is dead
-IDLE_HOURS, MAX_IDLE = 24, 3
+IDLE_HOURS = 24           # informational only
 SPAWN_AT, CHILD_STAKE, MIN_CHILD, MAX_CHILDREN = 2.0, 0.5, 6.0, 3
 DRY_START = 47.87
-LOCK = threading.RLock()      # guard thread and brain thread share the state file
+LOCK = threading.RLock()
+INFLIGHT = set()
+LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
+DRY_SIZE_CAP = 0.9
+MIN_RR = 1.5              # take_pct / stop_pct must be at least this
 
 
 def sfile(mode):
     return HERE / ("state_%s.json" % mode)
 
 
+_STATE = {}
+
+
 def load(mode, start):
-    f = sfile(mode)
-    if f.exists():
-        return json.loads(f.read_text())
-    return {"mode": mode, "bots": {"shachar": newbot("shachar", start, None)}, "log": []}
+    """The one shared in-memory state for this mode (loaded from disk once)."""
+    with LOCK:
+        if mode not in _STATE:
+            f = sfile(mode)
+            _STATE[mode] = json.loads(f.read_text()) if f.exists() else {"mode": mode, "bots": {"shachar": newbot("shachar", start, None)}, "log": []}
+        return _STATE[mode]
+
+
+def save(mode, s=None):
+    """Atomic write: temp file then rename, so a crash never leaves half a file."""
+    with LOCK:
+        s = s if s is not None else _STATE[mode]
+        f = sfile(mode)
+        tmp = f.with_suffix(".tmp")
+        tmp.write_text(json.dumps(s, indent=1))
+        os.replace(tmp, f)
 
 
 def newbot(name, cash, parent):
@@ -34,34 +55,128 @@ def newbot(name, cash, parent):
 
 
 def equity(b, tk):
-    return b["cash"] + sum(q * tk[p]["bid"] for p, q in b["pos"].items())
+    return b["cash"] + sum(q * tk[p]["bid"] for p, q in b["pos"].items() if p in tk)
+
+
+def jlog(rec):
+    rec["t"] = time.strftime("%F %T")
+    with LOCK:
+        with (HERE / "journal.jsonl").open("a") as f:
+            f.write(json.dumps(rec) + "\n")
+
+
+def write_halt(why):
+    try:
+        (HERE / "HALT").write_text("%s at %s\n" % (why, time.strftime("%F %T")))
+    except Exception:
+        pass
+    jlog({"event": "halt", "why": why})
+
+
+_RH = {"t": 0.0, "v": False}
+
+
+def remote_halt():
+    """Remote kill switch: a file named HALT on the main branch of the repo stops new buys. 404 = no halt.
+    Fail-open on network errors (the real kill switch is revoking the Kraken API key). The CDN may cache ~5 min."""
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        return False
+    if time.time() - _RH["t"] < 60:
+        return _RH["v"]
+    _RH["t"] = time.time()
+    try:
+        urllib.request.urlopen(urllib.request.Request("https://raw.githubusercontent.com/%s/main/HALT" % repo, headers={"User-Agent": "shachar"}), timeout=10)
+        _RH["v"] = True
+    except urllib.error.HTTPError as e:
+        _RH["v"] = False if e.code == 404 else _RH["v"]
+    except Exception:
+        pass
+    return _RH["v"]
+
+
+def halted():
+    return os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists() or remote_halt()
 
 
 ASSET = {"XXBT": "XBT", "XETH": "ETH", "XXRP": "XRP", "XXDG": "DOGE", "XLTC": "LTC", "ZUSD": "USD"}
 RECON_TOL = 0.03
 
 
+def real_holdings(bal):
+    """Kraken balance -> (usdc, {base: qty})."""
+    qty = {}
+    for a, v in bal.items():
+        base = ASSET.get(a, a)
+        qty[base] = qty.get(base, 0.0) + v
+    return qty.pop("USDC", 0.0), qty
+
+
 def reconcile(k, s, tk):
-    """Live only: compare the real Kraken account with the ledger. A gap over 3% writes a HALT file
-    (no new buys; guard exits still run) and logs it. Returns (ok, real_equity, ledger_equity)."""
-    bal = k.balance()
-    real = bal.get("USDC", 0.0)
+    """Live only: compare the real Kraken account with the ledger PER ASSET (USDC and every coin quantity).
+    A mismatch over 3% (and over 1 USD) writes HALT (no new buys; guard exits still run). Returns (ok, real_equity, ledger_equity)."""
+    usdc, held = real_holdings(k.balance())
+    real = usdc
+    bad = []
+    led_usdc = sum(b["cash"] for b in s["bots"].values())
+    led_eq = led_usdc
     for p in tk:
         base = p[:-4]
-        qty = sum(v for a, v in bal.items() if ASSET.get(a, a) == base)
-        real += qty * tk[p]["bid"]
-    led = sum(equity(b, tk) for b in s["bots"].values() if b["alive"])
-    ok = led <= 0 or abs(real - led) / led <= RECON_TOL
-    jlog({"event": "reconcile", "ok": ok, "kraken_equity": round(real, 2), "ledger_equity": round(led, 2)})
+        r = held.get(base, 0.0)
+        l = sum(b["pos"].get(p, 0.0) for b in s["bots"].values())
+        real += r * tk[p]["bid"]
+        led_eq += l * tk[p]["bid"]
+        if abs(r - l) * tk[p]["bid"] > max(1.0, RECON_TOL * max(r, l) * tk[p]["bid"]):
+            bad.append("%s kraken %.6f vs ledger %.6f" % (base, r, l))
+    if abs(usdc - led_usdc) > max(0.5, RECON_TOL * max(led_eq, 1.0)):
+        bad.append("USDC kraken %.2f vs ledger %.2f" % (usdc, led_usdc))
+    ok = not bad
+    jlog({"event": "reconcile", "ok": ok, "kraken_equity": round(real, 2), "ledger_equity": round(led_eq, 2), "bad": bad})
     if not ok:
-        (HERE / "HALT").write_text("reconcile mismatch kraken %.2f vs ledger %.2f at %s\n" % (real, led, time.strftime("%F %T")))
-    return ok, real, led
+        write_halt("reconcile mismatch: " + "; ".join(bad))
+    return ok, real, led_eq
 
 
-def jlog(rec):
-    rec["t"] = time.strftime("%F %T")
-    with (HERE / "journal.jsonl").open("a") as f:
-        f.write(json.dumps(rec) + "\n")
+def boot_sync(k, s, tk, mode="live"):
+    """Run once at start in live mode: Kraken is the truth. Cancel leftover non-stop orders, rebuild cash and
+    positions from the real balances, keep known guards, adopt existing stop orders, place missing stops."""
+    try:
+        openo = k.open_orders()
+        stops = {}
+        for txid, o in openo.items():
+            d = o.get("descr", {})
+            if d.get("ordertype") == "stop-loss" and d.get("type") == "sell":
+                stops[d.get("pair")] = txid
+            else:
+                k.cancel(txid)
+        usdc, held = real_holdings(k.balance())
+        with LOCK:
+            b = s["bots"].setdefault("shachar", newbot("shachar", usdc, None))
+            b["cash"] = usdc
+            gd = b.setdefault("guards", {})
+            b["pos"] = {}
+            for p in tk:
+                q = held.get(p[:-4], 0.0)
+                if q * tk[p]["bid"] >= 1.0:
+                    b["pos"][p] = q
+                    px = tk[p]["bid"]
+                    g = gd.get(p) or {"entry": px, "stop": px * 0.97, "take": px * 1.05, "high": px, "t": time.time()}
+                    g["stop_txid"] = stops.get(p)
+                    g["stop_vol"] = q if stops.get(p) else 0
+                    if stops.get(p):
+                        g["stop_px"] = g["stop"]
+                    gd[p] = g
+            for p in list(gd):
+                if p not in b["pos"]:
+                    gd.pop(p)
+            save(mode, s)
+        jlog({"event": "boot_sync", "usdc": round(usdc, 2), "positions": list(b["pos"]), "stops": list(stops)})
+        for p in list(b["pos"]):
+            ensure_stop(k, b, p, mode, False)
+        return True
+    except Exception as e:
+        write_halt("boot_sync failed: %s" % str(e)[:120])
+        return False
 
 
 def lessons_tail(n=6):
@@ -70,31 +185,35 @@ def lessons_tail(n=6):
 
 
 def market(k, tk):
+    """Per-pair inputs for the brain. chg_24h_pct is a real 24h change from hourly closes (None if too little history);
+    Kraken's Ticker `o` is only the UTC day open, so it is not used here."""
     out = {}
     for p, t in tk.items():
+        c = None
         try:
             c = k.ohlc(p)[0]
-            ch6 = (c[-1] / c[-7] - 1) * 100 if len(c) >= 7 else 0.0
         except Exception:
-            ch6 = 0.0
+            pass
+        ch6 = (c[-1] / c[-7] - 1) * 100 if c and len(c) >= 7 else 0.0
+        ch24 = (c[-1] / c[-25] - 1) * 100 if c and len(c) >= 25 else None
+        vol1h = 0.0
         try:
-            cl = c
-            rets = [cl[i] / cl[i - 1] - 1 for i in range(max(1, len(cl) - 24), len(cl))]
+            rets = [c[i] / c[i - 1] - 1 for i in range(max(1, len(c) - 24), len(c))]
             m_ = sum(rets) / len(rets)
             vol1h = (sum((x - m_) ** 2 for x in rets) / len(rets)) ** 0.5 * 100
         except Exception:
-            vol1h = 0.0
-        out[p] = {"vol_1h_pct": round(vol1h, 3), "price": t["last"], "chg_24h_pct": round((t["last"] / t["open"] - 1) * 100, 2),
+            pass
+        out[p] = {"vol_1h_pct": round(vol1h, 3), "price": t["last"], "chg_24h_pct": round(ch24, 2) if ch24 is not None else None,
                   "chg_6h_pct": round(ch6, 2), "min_order": k.pairs()[p]["ordermin"]}
     return out
 
 
-BRAIN_MIN_BUSY_S = 2400   # with a setup or an open position: one brain call per 40 min
-BRAIN_MIN_IDLE_S = 10800  # nothing to do: one per 3h
-MAKER_FEE = 0.005       # post-only entry fee used in the paper ledger (pessimistic vs Kraken maker tier)
-MIN_HOLD_H = 3          # brain cannot sell a fresh position (guard exits are exempt)
-COOLDOWN_H = 6          # per-coin cooldown after a sell
-MIN_TAKE_PCT = 3.0      # fee gate: ~1.6% round trip plus margin
+BRAIN_MIN_BUSY_S = 2400
+BRAIN_MIN_IDLE_S = 10800
+MAKER_FEE = 0.005
+MIN_HOLD_H = 3
+COOLDOWN_H = 6
+MIN_TAKE_PCT = 3.0
 
 
 MAX_SPREAD_PCT = 0.2        # liquidity filter: a buy needs spread <= 0.2%
@@ -169,13 +288,13 @@ def opportunities(mk, scan, tk):
             continue
         sc = (scan or {}).get("pairs", {}).get(p, {})
         c5, c15, c1h = sc.get("chg_5m_pct"), sc.get("chg_15m_pct"), sc.get("chg_1h_pct")
-        c6, c24 = m["chg_6h_pct"], m["chg_24h_pct"]
+        c6, c24 = m["chg_6h_pct"], m.get("chg_24h_pct")
         kind, est = None, 0.0
-        if c6 >= 3 and c6 <= 8 and (c1h is None or c1h > 0):
+        if c6 >= 3 and c6 <= 8 and c1h is not None and c1h > 0:
             kind, est = "breakout", min(7.0, c6 * 1.2)
-        elif 1 <= c6 < 5 and c24 > 0 and (c1h or 0) > 0 and (c15 or 0) >= 0:
+        elif 1 <= c6 < 5 and c24 is not None and c24 > 0 and (c1h or 0) > 0 and (c15 or 0) >= 0:
             kind, est = "trend", min(5.0, 2.0 + c6)
-        elif c24 <= -3 and (c5 or 0) > 0 and (c15 or 0) > 0:
+        elif c24 is not None and c24 <= -3 and (c5 or 0) > 0 and (c15 or 0) > 0:
             kind, est = "rebound", min(6.0, abs(c24) * 0.8)
         if kind and est >= 3.0:
             btc_ok = btc.get("chg_6h_pct", 0) > -1.5 or p == "XBTUSDC"
@@ -185,100 +304,284 @@ def opportunities(mk, scan, tk):
     return sorted(out, key=lambda r: -r["score"])
 
 
-def execute(k, s, b, d, tk, mode, validate):
-    """Apply one decision. Returns a short result string; trades update the ledger."""
-    act = d.get("action")
-    p = d.get("pair")
-    if act not in ("buy", "sell") or p not in tk:
-        return "no trade"
+
+
+class Refuse(Exception):
+    pass
+
+
+def num(v, default=None):
+    """Parse a number from LLM output ('3', 3, '3%', ' 2.5 '). Missing -> default. Garbage/NaN/inf/negative -> Refuse."""
+    if v is None or v == "":
+        return default
+    if isinstance(v, bool):
+        raise Refuse("bad number")
+    if isinstance(v, str):
+        v = v.strip().rstrip("%").strip().replace(",", "")
+    try:
+        x = float(v)
+    except Exception:
+        raise Refuse("not a number: %r" % str(v)[:20])
+    if math.isnan(x) or math.isinf(x) or x < 0:
+        raise Refuse("number out of range")
+    return x
+
+
+def make_ref(name, p):
+    return zlib.crc32(("%s:%s:%s" % (name, p, time.time())).encode()) & 0x7fffffff
+
+
+def _plan(k, b, d, tk, mode, internal, risk):
+    """Phase A (under LOCK): validate and size. Returns a plan dict or raises Refuse(message)."""
+    act, p = d["action"], d["pair"]
     info = k.pairs()[p]
     if act == "buy":
-        usdc = min(float(d.get("usdc", 0)), b["cash"] * policy.MAX_TRADE_FRAC)
-        vol = usdc * (1 - FEE) / tk[p]["ask"]
+        if not b["alive"]:
+            raise Refuse("refused: bot is dead, no new buys")
+        usdc = num(d.get("usdc"))
+        if not usdc:
+            raise Refuse("refused: usdc amount missing or invalid")
+        if d.get("take_pct") in (None, ""):
+            raise Refuse("refused: take_pct is required for a buy")
+        take = min(20.0, max(2.0, num(d.get("take_pct"))))
+        stop = min(10.0, max(1.5, num(d.get("stop_pct"), 3.0)))
+        cap = LIVE_SIZE_CAP if mode == "live" else DRY_SIZE_CAP
+        usdc = min(usdc, b["cash"] * cap)
+        vol = kraken.floor_to(usdc * (1 - FEE) / tk[p]["ask"], info["lot_decimals"])
         if usdc < max(info["costmin"], 1) or vol < info["ordermin"]:
-            return "refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"])
-        if os.environ.get("SHACHAR_HALT") == "1" or (HERE / "HALT").exists():
-            return "refused: halt flag is set (no new buys)"
+            raise Refuse("refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"]))
+        if halted():
+            raise Refuse("refused: halt flag is set (no new buys)")
         if time.time() - b.get("cool", {}).get(p, 0) < COOLDOWN_H * 3600:
-            return "refused: %s is in cooldown after its last sell" % p
-        if float(d.get("take_pct", 5)) < MIN_TAKE_PCT:
-            return "refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT
+            raise Refuse("refused: %s is in cooldown after its last sell" % p)
+        if take < MIN_TAKE_PCT:
+            raise Refuse("refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT)
+        if take / stop < MIN_RR:
+            raise Refuse("refused: reward/risk %.2f below %.1f (take %.1f%% vs stop %.1f%%)" % (take / stop, MIN_RR, take, stop))
         lq, lwhy = liquid(p, tk)
         if not lq:
-            return "refused: not liquid enough (%s)" % lwhy
+            raise Refuse("refused: not liquid enough (%s)" % lwhy)
         if usdc > b["cash"] * 0.99:
-            return "refused: would spend more than the account balance (spot only, never negative)"
-        ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy")
-    else:
-        q = b["pos"].get(p, 0.0) * max(0.0, min(1.0, float(d.get("fraction", 1))))
-        g0 = b.get("guards", {}).get(p)
-        if g0 and g0.get("t") and not d.get("reason", "").startswith("guard:") and time.time() - g0["t"] < MIN_HOLD_H * 3600:
-            return "refused: minimum hold %dh not reached (guard stop and take-profit still protect)" % MIN_HOLD_H
-        if q > b["pos"].get(p, 0.0) + 1e-12:
-            return "refused: cannot sell more than held (no shorting)"
-        if q < info["ordermin"]:
-            return "refused: nothing to sell or below minimum volume"
-        usdc, vol = q * tk[p]["bid"], q
-        ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="sell")
+            raise Refuse("refused: would spend more than the account balance (spot only, never negative)")
+        ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy", mode=mode, internal=internal)
+        if not ok:
+            raise Refuse("blocked by policy: %s" % why)
+        return {"act": "buy", "p": p, "vol": vol, "usdc": usdc, "stop": stop, "take": take}
+    frac = min(1.0, num(d.get("fraction"), 1.0))
+    held = b["pos"].get(p, 0.0)
+    q = held if frac >= 0.999 else kraken.floor_to(held * frac, info["lot_decimals"])
+    g0 = b.get("guards", {}).get(p)
+    if g0 and g0.get("t") and not internal and not risk and time.time() - g0["t"] < MIN_HOLD_H * 3600:
+        raise Refuse("refused: minimum hold %dh not reached (guard stop and take-profit still protect)" % MIN_HOLD_H)
+    if q > held + 1e-12:
+        raise Refuse("refused: cannot sell more than held (no shorting)")
+    if q < info["ordermin"]:
+        raise Refuse("refused: nothing to sell or below minimum volume")
+    ok, why = policy.check(b, q * tk[p]["bid"], "trade", "kraken", d.get("reason", ""), side="sell", mode=mode, internal=internal)
     if not ok:
-        return "blocked by policy: %s" % why
-    vol = round(vol, info["lot_decimals"])
-    maker = act == "buy"          # entries are post-only limit orders at the bid (maker fee); exits stay market (safety first)
-    if mode == "live" and maker:
+        raise Refuse("blocked by policy: %s" % why)
+    return {"act": "sell", "p": p, "vol": q}
+
+
+def _live_buy(k, b, plan, tk):
+    p = plan["p"]
+    try:
+        r = k.order_maker(p, "buy", plan["vol"], tk[p]["bid"], userref=make_ref(b["name"], p))
+    except Exception as e:
+        write_halt("maker entry error on %s: %s" % (p, str(e)[:100]))
+        return "maker entry failed (HALT set until reconcile): %s" % str(e)[:100]
+    if not r["live"]:
+        return "validated only (live orders off): %s" % r["descr"]
+    if r["vol"] <= 0:
+        return "maker entry not filled in time, cancelled, no trade (no chasing)"
+    return {"fills": [(r["vol"], r["cost"], r["fee"])], "side": "buy"}
+
+
+def _live_sell(k, b, plan, tk):
+    """Cancel the Kraken stop first (it locks the balance), verify, then market sell. If the stop already fired,
+    book that fill. If the sell fails, put the stop back."""
+    p, q = plan["p"], plan["vol"]
+    g = b.get("guards", {}).get(p) or {}
+    txid = g.get("stop_txid")
+    fills, new_stop = [], "keep"
+    if txid:
         try:
-            r = k.order_maker(p, "buy", vol, tk[p]["bid"], userref=abs(hash(b["name"])) % 10**6)
+            k.cancel(txid)
+            sq = k.query_order(txid)
         except Exception as e:
-            return "maker entry failed, no trade: %s" % str(e)[:100]
+            return "sell refused: could not cancel/verify the Kraken stop (%s); position stays protected" % str(e)[:80]
+        if sq["status"] not in kraken.DONE:
+            return "sell refused: Kraken stop still open after cancel; position stays protected"
+        new_stop = None
+        if sq["vol_exec"] > 0:
+            fills.append((sq["vol_exec"], sq["cost"], sq["fee"]))
+            q = q - sq["vol_exec"]
+    info = k.pairs()[p]
+    if q >= info["ordermin"]:
+        try:
+            r = k.order(p, "sell", q, userref=make_ref(b["name"], p))
+        except Exception as e:
+            return {"fills": fills, "side": "sell", "stop_txid": None, "failed": "sell failed: %s" % str(e)[:100]}
         if not r["live"]:
-            return "validated only (live orders off): %s" % r["descr"]
-        if r["vol"] < info["ordermin"]:
-            return "maker entry not filled in time, cancelled, no trade (no chasing)"
-        qty, cost, fee = r["vol"], r["cost"], r["fee"]
-    elif mode == "live":
-        r = k.order(p, act, vol, userref=abs(hash(b["name"])) % 10**6)
-        if not r["live"]:
-            return "validated only (live orders off): %s" % r["descr"]
-        qty, cost, fee = r["vol"], r["cost"], r["fee"]
-    else:
-        if validate:
-            r = k.order_maker(p, "buy", vol, tk[p]["bid"]) if maker else k.order(p, act, vol)
-            jlog({"bot": b["name"], "validated": r["descr"]})
-        qty = vol
-        cost = vol * (tk[p]["bid"] if maker else tk[p]["bid"] if act == "sell" else tk[p]["ask"])
-        fee = cost * (MAKER_FEE if maker else FEE)
-    gd = b.setdefault("guards", {})
-    if act == "buy":
-        b["cash"] -= cost + fee
-        b["pos"][p] = b["pos"].get(p, 0.0) + qty
-        entry = cost / qty
-        sp = min(10.0, max(1.5, float(d.get("stop_pct", 3)))) / 100
-        tp = min(20.0, max(2.0, float(d.get("take_pct", 5)))) / 100
-        gd[p] = {"entry": entry, "stop": entry * (1 - sp), "take": entry * (1 + tp), "high": entry, "stop_txid": None, "t": time.time()}
-        if mode == "live" or validate:
-            try:
-                so = k.stop_order(p, b["pos"][p], gd[p]["stop"])
-                gd[p]["stop_txid"] = so["txid"]; jlog({"bot": b["name"], "stop_order": so["descr"], "live": so["live"]})
-            except Exception as e:
-                jlog({"bot": b["name"], "stop_order_error": str(e)[:150]})
-    else:
-        g = gd.get(p)
-        if g and g.get("stop_txid") and mode == "live":
-            try: k.cancel(g["stop_txid"])
-            except Exception as e: jlog({"bot": b["name"], "cancel_error": str(e)[:150]})
-        b["cash"] += cost - fee
-        b.setdefault("cool", {})[p] = time.time()
-        b["pos"][p] = b["pos"].get(p, 0.0) - qty
-        if b["pos"][p] * tk[p]["bid"] < 1:
-            b["pos"].pop(p); gd.pop(p, None)
-        elif g:
-            g["stop_txid"] = None
+            return {"fills": fills, "side": "sell", "stop_txid": None, "failed": "validated only (live orders off)"}
+        if r.get("vol", 0) > 0:
+            fills.append((r["vol"], r["cost"], r["fee"]))
+        if r.get("status") not in kraken.DONE or r.get("vol", 0) <= 0:
+            write_halt("sell %s did not confirm (status %s)" % (p, r.get("status")))
+    return {"fills": fills, "side": "sell", "stop_txid": new_stop}
+
+
+def apply_sell(b, p, qty, cost, fee, tk):
+    b["cash"] += cost - fee
+    b.setdefault("cool", {})[p] = time.time()
+    b["pos"][p] = max(0.0, b["pos"].get(p, 0.0) - qty)
+    if b["pos"][p] * tk[p]["bid"] < 1:
+        b["pos"].pop(p, None); b.get("guards", {}).pop(p, None)
     b["fees"] += fee; b["trades"] += 1
     b["last_action"] = time.time(); b["idle_strikes"] = 0
-    return "%s %s %.6f @ ~%.4f (fee %.3f)" % (act, p, qty, cost / qty, fee)
 
 
-def cycle(mode, validate=False, scan=None):
-    k = kraken.Kraken()
+def _apply_buy(b, plan, qty, cost, fee):
+    p = plan["p"]
+    gd = b.setdefault("guards", {})
+    prev, g0 = b["pos"].get(p, 0.0), gd.get(p)
+    b["cash"] -= cost + fee
+    b["pos"][p] = prev + qty
+    entry = (prev * g0["entry"] + cost) / (prev + qty) if g0 and prev else cost / qty
+    gd[p] = {"entry": entry, "stop": entry * (1 - plan["stop"] / 100), "take": entry * (1 + plan["take"] / 100),
+             "high": entry, "stop_txid": g0.get("stop_txid") if g0 else None, "stop_vol": g0.get("stop_vol", 0) if g0 else 0,
+             "t": time.time()}
+    b["fees"] += fee; b["trades"] += 1
+    b["last_action"] = time.time(); b["idle_strikes"] = 0
+
+
+def ensure_stop(k, b, p, mode, validate):
+    """Keep one Kraken stop-loss order matching the position and the guard's stop level (replace if the quantity changed
+    or a trailing stop rose >= 1%). No lock during exchange I/O."""
+    live = mode == "live" and kraken.live_enabled()
+    if not (live or validate):
+        return
+    with LOCK:
+        g, qty = b.get("guards", {}).get(p), b["pos"].get(p, 0.0)
+        if not g or qty <= 0 or time.time() - g.get("stop_err_t", 0) < 300:
+            return
+        old, stop = g.get("stop_txid"), g["stop"]
+        need = old is None or abs(qty - g.get("stop_vol", 0)) > qty * 0.01 or stop >= g.get("stop_px", 0) * 1.01
+    if not need:
+        return
+    try:
+        if old and live:
+            k.cancel(old)
+            q = k.query_order(old)
+            if q["vol_exec"] > 0:
+                return           # it fired; sync_stops books it
+        so = k.stop_order(p, qty, stop)
+        with LOCK:
+            g["stop_txid"] = so["txid"] if live else None
+            g["stop_vol"], g["stop_px"] = qty, stop
+        jlog({"bot": b["name"], "stop_order": so["descr"], "live": so["live"]})
+    except Exception as e:
+        with LOCK:
+            g["stop_err_t"] = time.time()
+            if old and live:
+                g["stop_txid"] = None
+        jlog({"bot": b["name"], "stop_order_error": str(e)[:150]})
+
+
+def sync_stops(k, mode, tk):
+    """Live: book stops that Kraken fired, clear dead stop ids, re-place missing stops."""
+    if not (mode == "live" and kraken.live_enabled()):
+        return
+    with LOCK:
+        s = load(mode, 0.0)
+        todo = [(b, p, b["guards"][p]["stop_txid"]) for b in s["bots"].values() for p in list(b["pos"])
+                if b.get("guards", {}).get(p, {}).get("stop_txid")]
+    for b, p, txid in todo:
+        try:
+            q = k.query_order(txid)
+        except Exception as e:
+            jlog({"event": "stop_query_error", "err": str(e)[:100]})
+            continue
+        if q["status"] in kraken.DONE:
+            with LOCK:
+                g = b.get("guards", {}).get(p)
+                if g and g.get("stop_txid") == txid:
+                    g["stop_txid"] = None
+                    if q["vol_exec"] > 0:
+                        apply_sell(b, p, q["vol_exec"], q["cost"], q["fee"], tk)
+                        jlog({"bot": b["name"], "event": "stop_fired_by_kraken", "pair": p, "qty": q["vol_exec"], "cost": q["cost"]})
+                    save(mode, s)
+    with LOCK:
+        pairs = [(b, p) for b in s["bots"].values() for p in list(b["pos"])]
+    for b, p in pairs:
+        ensure_stop(k, b, p, mode, False)
+
+
+def execute(k, s, b, d, tk, mode, validate, internal=False, risk=False):
+    """Apply one decision. internal=True is set only by the guard in code (never by LLM text). risk=True lets a risk
+    event (BTC alert, USDC depeg) release the min-hold. Phase A validate (LOCK), B exchange I/O (no LOCK), C book fill (LOCK)."""
+    if not isinstance(d, dict):
+        return "no trade"
+    act, p = d.get("action"), d.get("pair")
+    if act not in ("buy", "sell") or p not in tk or p not in kraken.UNIVERSE:
+        return "no trade"
+    key = (b["name"], p)
+    with LOCK:
+        if key in INFLIGHT:
+            return "refused: an order for %s is already in flight" % p
+        try:
+            plan = _plan(k, b, d, tk, mode, internal, risk)
+        except Refuse as e:
+            m = str(e)
+            return m if m.startswith(("refused", "blocked")) else "refused: " + m
+        INFLIGHT.add(key)
+    try:
+        info = k.pairs()[p]
+        if mode == "live":
+            res = _live_buy(k, b, plan, tk) if act == "buy" else _live_sell(k, b, plan, tk)
+            if isinstance(res, str):
+                return res
+        else:
+            vol = plan["vol"]
+            if validate:
+                try:
+                    r = k.order_maker(p, "buy", vol, tk[p]["bid"]) if act == "buy" else k.order(p, "sell", vol)
+                    jlog({"bot": b["name"], "validated": r["descr"]})
+                except Exception as e:
+                    jlog({"bot": b["name"], "validate_error": str(e)[:120]})
+            maker = act == "buy"
+            cost = vol * tk[p]["bid"]       # dry fills are optimistic: a maker buy fills at the bid at once
+            res = {"fills": [(vol, cost, cost * (MAKER_FEE if maker else FEE))], "side": act}
+        with LOCK:
+            msg = ""
+            if act == "buy":
+                for qty, cost, fee in res["fills"]:
+                    _apply_buy(b, plan, qty, cost, fee)
+                    policy.record(b["name"], mode, cost, "buy")
+                    msg = "buy %s %.6f @ ~%.4f (fee %.3f)" % (p, qty, cost / qty, fee)
+            else:
+                if "stop_txid" in res and b.get("guards", {}).get(p) is not None:
+                    b["guards"][p]["stop_txid"] = res["stop_txid"]
+                    b["guards"][p]["stop_vol"] = 0
+                for qty, cost, fee in res["fills"]:
+                    apply_sell(b, p, qty, cost, fee, tk)
+                    policy.record(b["name"], mode, cost, "sell")
+                    msg = "sell %s %.6f @ ~%.4f (fee %.3f)" % (p, qty, cost / qty, fee)
+                if res.get("failed"):
+                    msg = (msg + " | " if msg else "") + res["failed"]
+            if mode == "live":
+                save(mode, s)
+        if mode == "live" or validate:
+            if p in b["pos"]:
+                ensure_stop(k, b, p, mode, validate)
+        return msg or "no trade"
+    finally:
+        with LOCK:
+            INFLIGHT.discard(key)
+
+
+def cycle(mode, validate=False, scan=None, k=None):
+    k = k or kraken.get()
     if mode == "live":
         if not kraken.live_enabled():
             print("LIVE orders are off (SHACHAR_LIVE not set). Orders will be validated only, nothing is placed.")
@@ -288,48 +591,49 @@ def cycle(mode, validate=False, scan=None):
     s = load(mode, start)
     tk = k.tickers()
     if mode == "live" and kraken.live_enabled():
+        sync_stops(k, mode, tk)
         try:
             reconcile(k, s, tk)
         except Exception as e:
-            jlog({"event": "reconcile_error", "err": str(e)[:150]})
-            (HERE / "HALT").write_text("reconcile failed: %s\n" % str(e)[:100])
+            write_halt("reconcile failed: %s" % str(e)[:100])
     mk = market(k, tk)
-    nw = {"headlines": news.headlines(6), "fear_greed": news.fear_greed(), "trending": news.trending()}
+    nw = {"fear_greed": news.fear_greed()}
     for name in list(s["bots"]):
         with LOCK:
-            s = load(mode, start); b = s["bots"][name]
-        if not b["alive"]:
-            continue
-        eq = equity(b, tk)
-        if time.time() - b["last_action"] > IDLE_HOURS * 3600:
-            b["idle_strikes"] += 1; b["last_action"] = time.time()
-            s["log"].append("%s idle strike %d" % (b["name"], b["idle_strikes"]))
-            if b["idle_strikes"] >= MAX_IDLE:
-                eq = 0.0
-        if eq < DEATH_FLOOR:
-            b["alive"] = False; b["pos"] = {}; b["cash"] = 0.0
-            s["log"].append("%s DIED %s" % (b["name"], time.strftime("%F %T")))
-            jlog({"bot": b["name"], "event": "died", "equity": round(eq, 2)})
-            with LOCK:
-                sfile(mode).write_text(json.dumps(s, indent=1))
-            continue
-        with LOCK:
-            sfile(mode).write_text(json.dumps(s, indent=1))
-        profit = eq - b["start"]
-        want_child = eq >= b["start"] * SPAWN_AT and len(b["children"]) < MAX_CHILDREN
-        ctx = {"time": time.strftime("%F %T"), "market": mk, "news": nw, "lessons": lessons_tail(),
-               "me": {"name": b["name"], "cash": round(b["cash"], 2), "positions": {p: round(q, 6) for p, q in b["pos"].items()},
-                      "equity": round(eq, 2), "start": round(b["start"], 2), "profit": round(profit, 2),
-                      "idle_strikes": b["idle_strikes"], "hours_since_last_trade": round((time.time() - b["last_action"]) / 3600, 1),
-                      "trades_total": b["trades"], "death_floor": DEATH_FLOOR,
-                      "reproduction": "ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)"}}
+            b = s["bots"][name]
+            if not b["alive"]:
+                continue
+            eq = equity(b, tk)
+            if time.time() - b["last_action"] > IDLE_HOURS * 3600:
+                b["idle_strikes"] += 1; b["last_action"] = time.time()
+                s["log"].append("%s idle note %d (informational, no penalty)" % (b["name"], b["idle_strikes"]))
+            if eq < DEATH_FLOOR:
+                b["alive"] = False
+                s["log"].append("%s DIED %s (positions kept and still protected)" % (b["name"], time.strftime("%F %T")))
+                jlog({"bot": b["name"], "event": "died", "equity": round(eq, 2)})
+                write_halt("bot %s equity %.2f below death floor" % (b["name"], eq))
+                save(mode, s)
+                continue
+            save(mode, s)
+            profit = eq - b["start"]
+            want_child = mode != "live" and eq >= b["start"] * SPAWN_AT and len(b["children"]) < MAX_CHILDREN
+            ctx = {"time": time.strftime("%F %T"), "market": mk, "news": nw, "lessons": lessons_tail(),
+                   "me": {"name": b["name"], "cash": round(b["cash"], 2), "positions": {p: round(q, 6) for p, q in b["pos"].items()},
+                          "equity": round(eq, 2), "start": round(b["start"], 2), "profit": round(profit, 2),
+                          "hours_since_last_trade": round((time.time() - b["last_action"]) / 3600, 1),
+                          "trades_total": b["trades"], "death_floor": DEATH_FLOOR,
+                          "reproduction": ("ready, free cash needed %.2f" % (profit * CHILD_STAKE) if want_child else "not yet (need 2x start)") if mode != "live" else "off in live"},
+                   "cooldown_pairs": [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]}
+            positions = [p for p in b["pos"] if p in tk]
         if scan:
             ctx["scan"] = scan
         ctx["opportunities"] = opportunities(mk, scan, tk)
         ctx["btc_alert"] = btc_alert(mk, scan)
+        risk = ctx["btc_alert"] != "none"
         try:
             peg = k.usdc_peg()
             ctx["usdc_peg"] = {"usdc_usd": round(peg, 4), "warning": "USDC off peg, your cash may be at risk" if abs(peg - 1) > 0.003 else "ok"}
+            risk = risk or abs(peg - 1) > 0.003
         except Exception:
             ctx["usdc_peg"] = {"warning": "unavailable"}
         for o in ctx["opportunities"][:3]:
@@ -337,28 +641,22 @@ def cycle(mode, validate=False, scan=None):
                 o["backtest_30d"] = backtest_setup(k.ohlc_full(o["pair"]), o["setup"]) or "too few cases"
             except Exception:
                 pass
-        want = [o["pair"] for o in ctx["opportunities"][:3]] + [p for p in b["pos"] if p in tk]
         ctx["order_books"] = {}
-        for p in dict.fromkeys(want):
+        for p in dict.fromkeys([o["pair"] for o in ctx["opportunities"][:3]] + positions):
             try:
                 ctx["order_books"][p] = k.depth(p)
             except Exception:
                 pass
-        ctx["cooldown_pairs"] = [p for p, t0 in b.get("cool", {}).items() if time.time() - t0 < COOLDOWN_H * 3600]
         ctx["not_liquid"] = [p for p in mk if p in tk and not liquid(p, tk)[0]]
-        busy = bool(ctx["opportunities"]) or bool(b["pos"]) or ctx["btc_alert"] != "none"
+        busy = bool(ctx["opportunities"]) or bool(positions) or risk
         wait_s = BRAIN_MIN_BUSY_S if busy else BRAIN_MIN_IDLE_S
         if time.time() - b.get("last_brain", 0) < wait_s:
             d = {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}
         else:
-            d = brain.decide(ctx)        # slow (LLM); the guard thread keeps running meanwhile
-        with LOCK:
-            s = load(mode, start); b = s["bots"][b["name"]]
-            if not b["alive"]:
-                continue
-            if d.get("source") != "gate":
-                b["last_brain"] = time.time()
-            res = execute(k, s, b, d, tk, mode, validate)
+            d = brain.decide(ctx)        # slow (LLM), no lock held; the guard thread keeps running meanwhile
+        if d.get("source") != "gate":
+            b["last_brain"] = time.time()
+        res = execute(k, s, b, d, tk, mode, validate, risk=risk)
         if d.get("lesson"):
             with (HERE / "lessons.md").open("a") as f:
                 f.write("- %s [%s] %s\n" % (time.strftime("%F"), b["name"], str(d["lesson"])[:300]))
@@ -366,25 +664,23 @@ def cycle(mode, validate=False, scan=None):
             with (HERE / "ideas_proposed.jsonl").open("a") as f:
                 f.write(json.dumps({"bot": b["name"], "t": time.strftime("%F %T"), "idea": d.get("reason")}) + "\n")
         jlog({"bot": b["name"], "decision": d, "result": res, "equity": round(equity(b, tk), 2)})
-        eq = equity(b, tk); profit = eq - b["start"]
-        if want_child and profit * CHILD_STAKE >= MIN_CHILD and b["cash"] >= profit * CHILD_STAKE:
-            stake = profit * CHILD_STAKE
-            cn = "%s.%d" % (b["name"], len(b["children"]) + 1)
-            b["cash"] -= stake; b["children"].append(cn); b["start"] = eq - stake
-            s["bots"][cn] = newbot(cn, stake, b["name"])
-            s["log"].append("%s spawned %s with %.2f USDC" % (b["name"], cn, stake))
-            jlog({"bot": b["name"], "event": "spawned", "child": cn, "stake": round(stake, 2)})
         with LOCK:
+            eq = equity(b, tk); profit = eq - b["start"]
+            if want_child and profit * CHILD_STAKE >= MIN_CHILD and b["cash"] >= profit * CHILD_STAKE:
+                stake = profit * CHILD_STAKE
+                cn = "%s.%d" % (b["name"], len(b["children"]) + 1)
+                b["cash"] -= stake; b["children"].append(cn); b["start"] = eq - stake
+                s["bots"][cn] = newbot(cn, stake, b["name"])
+                s["log"].append("%s spawned %s with %.2f USDC" % (b["name"], cn, stake))
+                jlog({"bot": b["name"], "event": "spawned", "child": cn, "stake": round(stake, 2)})
             s["log"] = s["log"][-200:]
-            sfile(mode).write_text(json.dumps(s, indent=1))
-    with LOCK:
-        s = load(mode, start)
+            save(mode, s)
     status(mode, s, tk)
 
 
 def status(mode="dry", s=None, tk=None):
     if s is None:
-        s = load(mode, DRY_START); tk = kraken.Kraken().tickers()
+        s = load(mode, DRY_START); tk = kraken.get().tickers()
     for b in s["bots"].values():
         print("%-10s %-5s equity %.2f USDC (start %.2f) cash %.2f fees %.2f trades %d idle %d %s" % (
             b["name"], "alive" if b["alive"] else "DEAD", equity(b, tk), b["start"], b["cash"], b["fees"],
