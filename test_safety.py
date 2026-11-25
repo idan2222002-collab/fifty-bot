@@ -55,3 +55,16 @@ os.environ["SHACHAR_HALT"] = "1"
 r = shachar.execute(FK(), s2, b2, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
 assert "halt" in r, r
 print("FEE GATE / COOLDOWN / HALT TESTS PASSED")
+
+
+# reconcile: matching account passes, mismatch writes HALT
+class RK:
+    def __init__(self, usdc): self.u = usdc
+    def balance(self): return {"USDC": self.u}
+b3 = {"name": "t3", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True}
+ok, _, _ = shachar.reconcile(RK(40.5), {"bots": {"t3": b3}}, tk)
+assert ok and not (shachar.HERE / "HALT").exists()
+ok, _, _ = shachar.reconcile(RK(30.0), {"bots": {"t3": b3}}, tk)
+assert not ok and (shachar.HERE / "HALT").exists()
+(shachar.HERE / "HALT").unlink()
+print("RECONCILE TESTS PASSED")
