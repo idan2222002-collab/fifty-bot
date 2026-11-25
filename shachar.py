@@ -21,6 +21,7 @@ INFLIGHT = set()
 LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
 DRY_SIZE_CAP = 0.9
 MIN_RR = 1.5              # take_pct / stop_pct must be at least this
+MAX_RISK_PCT = float(os.environ.get("SHACHAR_MAX_RISK_PCT", "2"))   # one stop-out (fees included) costs at most this % of equity
 PAPER_PENDING = False     # paper mode: True = a maker entry waits for the market to trade through it (guard.py turns
                           # it on, because only the always-on loop can watch the order). False = instant fill.
 
@@ -352,6 +353,12 @@ def _plan(k, b, d, tk, mode, internal, risk):
         stop = min(10.0, max(1.5, num(d.get("stop_pct"), 3.0)))
         cap = LIVE_SIZE_CAP if mode == "live" else DRY_SIZE_CAP
         usdc = min(usdc, b["cash"] * cap)
+        # survival sizing: if this trade hits its stop, the loss (stop distance + round-trip fees) is at most
+        # MAX_RISK_PCT of equity. The brain still chooses the coin, the stop and the target; a wider stop simply
+        # buys a smaller position. Twenty stop-outs in a row then cost about a third of the stake, not all of it.
+        risk_cap = equity(b, tk) * MAX_RISK_PCT / (stop + (FEE + MAKER_FEE) * 100)
+        if usdc > risk_cap:
+            usdc = risk_cap
         vol = kraken.floor_to(usdc * (1 - FEE) / tk[p]["ask"], info["lot_decimals"])
         if usdc < max(info["costmin"], 1) or vol < info["ordermin"]:
             raise Refuse("refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"]))

@@ -243,3 +243,22 @@ assert all(k_ in row for k_ in ("chg_5m_pct", "chg_15m_pct", "chg_1h_pct")), row
 assert abs(row["chg_1h_pct"] - (101.0 / (100.0 + 0.01 * 30) - 1) * 100) < 0.05, row    # vs the close one hour ago
 assert len(warm.hist["XBTUSDC"]) == 76 and warm.hist["XBTUSDC"][0][0] < warm.hist["XBTUSDC"][-1][0]
 print("SCANNER WARM START TESTS PASSED")
+
+# survival sizing: a stop-out, fees included, costs at most MAX_RISK_PCT of equity
+import tempfile as _tf3, pathlib as _pl3, policy as _pol3
+shachar.HERE = _pol3.HERE = _pl3.Path(_tf3.mkdtemp())
+shachar.INFLIGHT.clear()
+_rt = (shachar.FEE + shachar.MAKER_FEE) * 100
+for _stop, _take in ((1.5, 5), (3, 5), (6, 10), (10, 20)):
+    br = {"name": "tr%s" % _stop, "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
+    r = shachar.execute(FK(), {"bots": {br["name"]: br}}, br, {"action": "buy", "pair": "XBTUSDC", "usdc": 1000,
+                                                                "take_pct": _take, "stop_pct": _stop}, tk, "dry", False)
+    assert r.startswith("buy"), r
+    spent = 40.0 - br["cash"]
+    worst = spent * (_stop + _rt) / 100                                       # loss if the stop is hit
+    assert worst <= 40.0 * shachar.MAX_RISK_PCT / 100 + 0.02, (_stop, spent, worst)
+    assert spent <= 40.0 * shachar.DRY_SIZE_CAP + 1e-6
+small = {"name": "trs", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
+shachar.execute(FK(), {"bots": {"trs": small}}, small, {"action": "buy", "pair": "XBTUSDC", "usdc": 5, "take_pct": 5, "stop_pct": 3}, tk, "dry", False)
+assert abs((40.0 - small["cash"]) - 5.0) < 0.1, small["cash"]                 # a request under the cap is not changed
+print("RISK SIZE CAP TESTS PASSED")
