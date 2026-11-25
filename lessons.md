@@ -7,3 +7,5 @@
 - 2026-11-25 [shachar] use modest position size on clear short‑term momentum to avoid large fee drag
 - 2026-11-25 [shachar] avoided unnecessary trade to preserve capital and prevent fee drag
 - 2026-11-25 [shachar] use modest position size on clear short‑term momentum to avoid large fee drag
+- 2026-11-25 [shachar] use modest position size on clear short‑term momentum to avoid fee drag
+- 2026-11-25 [shachar] Select assets with clear short‑term momentum (>2% 6h) and low spread to ensure the trade can cover the ~1.6% round‑trip cost

@@ -4,18 +4,19 @@
   "shachar": {
    "name": "shachar",
    "alive": true,
-   "cash": 22.58512680525632,
+   "cash": 10.58588755370432,
    "start": 47.87,
    "pos": {
-    "XBTUSDC": 0.00042229999999999996
+    "XBTUSDC": 0.00042229999999999996,
+    "ETHUSDC": 0.00711877
    },
    "parent": null,
    "children": [],
    "born": 1795625898.3282545,
-   "fees": 0.51609674946368,
-   "last_action": 1795627430.4578376,
+   "fees": 0.61132880701568,
+   "last_action": 1795628962.0124824,
    "idle_strikes": 0,
-   "trades": 4,
+   "trades": 5,
    "guards": {
     "XBTUSDC": {
      "entry": 59653.16000000001,
@@ -24,6 +25,14 @@
      "high": 59849.82,
      "stop_txid": null,
      "t": 1795627124.2786705
+    },
+    "ETHUSDC": {
+     "entry": 1672.2,
+     "stop": 1638.756,
+     "take": 1739.0880000000002,
+     "high": 1683.2,
+     "stop_txid": null,
+     "t": 1795628962.0124805
     }
    },
    "cool": {
