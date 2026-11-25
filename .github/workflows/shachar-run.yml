@@ -43,5 +43,5 @@ jobs:
           END=$((SECONDS+20400))
           while [ $SECONDS -lt $END ] && kill -0 $PID 2>/dev/null; do sleep 300; save; tail -n 3 run.log; done
           kill $PID 2>/dev/null || true
-          sleep 3
+          for i in $(seq 150); do kill -0 $PID 2>/dev/null || break; sleep 1; done  # wait for the clean shutdown
           save
