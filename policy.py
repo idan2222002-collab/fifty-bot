@@ -8,6 +8,7 @@ BANNED = {"gambling", "loans", "leverage", "margin", "futures", "scam", "spam", 
 ALLOWED_PAYEES = {"kraken"}      # owner-approved. Anything else needs owner approval first.
 MAX_SINGLE_SPEND_FRAC = 0.5      # non-trade action: at most half of balance
 MAX_TRADE_FRAC = 0.9             # one buy may use at most 90% of the bot's cash
+MAX_TRADES_PER_WEEK = 25          # per bot
 MAX_TRADES_PER_DAY = 6           # per bot, stops fee-burning busywork
 PAYEE_FOR_TRADE = "kraken"
 
@@ -23,6 +24,20 @@ def _today_trades(bot_name):
         except Exception:
             continue
         if r.get("bot") == bot_name and r.get("ok") and r.get("category") == "trade" and r.get("day") == day:
+            n += 1
+    return n
+
+
+def _week_trades(bot_name):
+    if not LOG.exists():
+        return 0
+    n, cut = 0, time.time() - 7 * 86400
+    for line in LOG.read_text().splitlines():
+        try:
+            r = json.loads(line)
+        except Exception:
+            continue
+        if r.get("bot") == bot_name and r.get("ok") and r.get("category") == "trade" and r.get("t", 0) > cut:
             n += 1
     return n
 
@@ -43,6 +58,8 @@ def check(bot, amount, category, payee, purpose, side="buy", owner_approved=Fals
             pass  # protective exit by the 1-second guard is never blocked by the daily cap
         elif _today_trades(bot["name"]) >= MAX_TRADES_PER_DAY:
             reason = "daily trade cap reached"
+        elif _week_trades(bot["name"]) >= MAX_TRADES_PER_WEEK:
+            reason = "weekly trade cap reached"
     else:
         if amount > bot["cash"]:
             reason = "exceeds the bot's own balance"
