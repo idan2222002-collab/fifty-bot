@@ -423,6 +423,10 @@ def _live_buy(k, b, plan, tk):
     p = plan["p"]
     try:
         r = k.order_maker(p, "buy", plan["vol"], tk[p]["bid"], userref=make_ref(b["name"], p))
+    except kraken.Rejected as e:
+        # Kraken said no and nothing was placed (the usual case: the price moved and the post-only bid would have
+        # crossed). An ordinary missed entry, not an unknown state: no HALT.
+        return "maker entry refused by Kraken, no trade: %s" % str(e)[:100]
     except Exception as e:
         write_halt("maker entry error on %s: %s" % (p, str(e)[:100]))
         return "maker entry failed (HALT set until reconcile): %s" % str(e)[:100]
@@ -658,7 +662,7 @@ def fill_pending(tk, mode):
     return out
 
 
-def cycle(mode, validate=False, scan=None, k=None):
+def cycle(mode, validate=False, scan=None, k=None, fresh_tk=None):
     k = k or kraken.get()
     if mode == "live":
         if not kraken.live_enabled():
@@ -742,7 +746,8 @@ def cycle(mode, validate=False, scan=None, k=None):
             b["last_brain_err"] = time.time()     # the brain did not really think: do not make it wait 40 minutes
         elif src != "gate":
             b["last_brain"] = time.time()
-        res = execute(k, s, b, d, tk, mode, validate, risk=risk)
+        # the prices in `tk` were read before the brain was asked (it can take a minute): order at the newest ones
+        res = execute(k, s, b, d, (fresh_tk() if fresh_tk else None) or tk, mode, validate, risk=risk)
         if src != "gate":                         # the brain reads what happened to its last proposals, refusals included
             with LOCK:
                 b["recent"] = (b.get("recent") or [])[-5:] + [{"t": time.strftime("%F %H:%M"), "action": d.get("action"),

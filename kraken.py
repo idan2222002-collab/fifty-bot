@@ -13,6 +13,10 @@ DONE = ("closed", "canceled", "expired")
 ABORT = threading.Event()          # set when the host is stopping: a resting maker entry is cancelled at once
 ALLOWED_KEYS = {"pair", "type", "ordertype", "volume", "price", "oflags", "userref", "validate", "nonce"}
 
+class Rejected(RuntimeError):
+    """Kraken answered AddOrder with an error: the order was refused and does not exist. Not a reason to halt."""
+
+
 _PRIV_LOCK = threading.Lock()      # one private call at a time, nonce strictly increasing
 _LAST_NONCE = [0]
 
@@ -265,6 +269,8 @@ class Kraken:
         try:
             res = self._priv("/0/private/AddOrder", data)
         except Exception as e:
+            if isinstance(e, RuntimeError) and str(e).startswith("kraken:"):
+                raise Rejected(str(e))                  # a definite "no" from Kraken (post-only would cross, busy, ...)
             if live:                                    # the order may exist even though we got no answer
                 self._cancel_by_userref(ref)
             raise
