@@ -1,25 +1,40 @@
-"""1-second scanner. One public Kraken call per tick for all pairs. Keeps about 70 minutes of per-second
-prices in memory and turns them into a short summary the brain can read."""
-import time, json, collections, pathlib, os
-import kraken
+"""Price scanner. One public Kraken call per tick for all pairs. Keeps about 70+ minutes of prices in memory and turns
+them into a short summary the brain can read. seed() loads the last ~75 one-minute candles at start, so the 1h window
+is ready right after a restart instead of an hour later."""
+import time, json, collections, os
+import kraken, store
 
-HERE = pathlib.Path(__file__).parent
 WINDOWS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600}
 
 
 class Scanner:
     def __init__(self, k=None):
         self.k = k or kraken.Kraken()
-        self.hist = collections.defaultdict(lambda: collections.deque(maxlen=4300))
+        self.hist = collections.defaultdict(lambda: collections.deque(maxlen=4400))
         self.tk = {}
         self.t = 0.0
 
+    def seed(self, minutes=75):
+        """Best effort. Returns the number of pairs seeded."""
+        n = 0
+        for p in self.k.pairs():
+            try:
+                rows = self.k.ohlc(p, 1)[-minutes:]
+                self.hist[p].extend((r["t"] + 60.0, r["c"]) for r in rows[:-1])     # close time of finished candles
+                n += 1
+            except Exception:
+                pass
+        return n
+
     def tick(self):
-        self.tk = self.k.tickers_fast()
-        self.t = time.time()
-        for p, v in self.tk.items():
+        tk = self.k.tickers()
+        self.tk, self.t = tk, time.time()
+        for p, v in tk.items():
             self.hist[p].append((self.t, v["last"]))
-        return self.tk
+        return tk
+
+    def age(self):
+        return time.time() - self.t if self.t else 1e9
 
     def _chg(self, p, secs):
         h = self.hist[p]
@@ -35,11 +50,15 @@ class Scanner:
             return None       # not enough history yet
         return round((h[-1][1] / old - 1) * 100, 3)
 
+    def history_seconds(self):
+        spans = [h[-1][0] - h[0][0] for h in self.hist.values() if len(h) > 1]
+        return int(min(spans)) if spans else 0
+
     def summary(self):
         out = {}
         for p, v in self.tk.items():
             row = {"price": v["last"], "spread_pct": round((v["ask"] / v["bid"] - 1) * 100, 3),
-                   "chg_utc_day_pct": round((v["last"] / v["open"] - 1) * 100, 2), "vol24_base": round(v["vol24"], 1)}
+                   "vol24_base": round(v["vol24"], 1)}
             flags = []
             for name, secs in WINDOWS.items():
                 c = self._chg(p, secs)
@@ -55,18 +74,15 @@ class Scanner:
                 flags.append("wide_spread")
             row["flags"] = flags
             out[p] = row
-        return {"as_of": time.strftime("%F %T"), "history_seconds": int(self.t - self.hist["XBTUSDC"][0][0]) if self.hist["XBTUSDC"] else 0,
-                "pairs": out}
+        return {"as_of": time.strftime("%Y-%m-%d %H:%M:%S"), "history_seconds": self.history_seconds(), "pairs": out}
 
-    def dump(self, path=None):
-        f = pathlib.Path(path or HERE / "scan.json")
-        tmp = f.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.summary()))
-        os.replace(tmp, f)
+    def dump(self):
+        store.atomic_write("scan.json", json.dumps(self.summary()))
 
 
 if __name__ == "__main__":
     s = Scanner()
-    for _ in range(3):
-        s.tick(); time.sleep(1)
-    print(json.dumps(s.summary(), indent=1)[:900])
+    print("seeded", s.seed())
+    for _ in range(2):
+        s.tick(); time.sleep(2)
+    print(json.dumps(s.summary(), indent=1)[:1200])

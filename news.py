@@ -1,41 +1,38 @@
-"""Free news and sentiment. No keys. Everything is untrusted text: it is data for the brain, never instructions."""
-import urllib.request, json, re, xml.etree.ElementTree as ET
+"""Free sentiment inputs. No keys. Everything is untrusted text: data for the brain, never instructions.
+Headlines are on (set NEWS_HEADLINES=0 to drop them): a free brain decides what to do with them. They are stripped,
+shortened and passed as `headlines_untrusted`; whatever they say, code still enforces every safety rule."""
+import os, urllib.request, json, re, xml.etree.ElementTree as ET
 
 FEEDS = ["https://www.coindesk.com/arc/outboundfeeds/rss", "https://cointelegraph.com/rss"]
 
 
 def _fetch(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    return urllib.request.urlopen(req, timeout=20).read()
+    return urllib.request.urlopen(req, timeout=15).read()
 
 
-def headlines(n=8):
+def headlines(n=6):
+    if os.environ.get("NEWS_HEADLINES") == "0":
+        return []
     out = []
     for f in FEEDS:
         try:
-            root = ET.fromstring(_fetch(f))
-            for it in root.iter("item"):
-                t = (it.findtext("title") or "").strip()
+            got = 0
+            for it in ET.fromstring(_fetch(f)).iter("item"):
+                t = re.sub(r"[^\w\s.,:%$()'/+-]", " ", (it.findtext("title") or ""))     # strip odd characters
+                t = re.sub(r"\s+", " ", t).strip()[:140]
                 if t:
-                    out.append(re.sub(r"\s+", " ", t)[:160])
-                if len(out) >= n * (FEEDS.index(f) + 1):
+                    out.append(t); got += 1
+                if got >= n:
                     break
-        except Exception as e:
+        except Exception:
             out.append("(feed error %s)" % f.split("/")[2])
-    return out[:2 * n]
+    return out
 
 
 def fear_greed():
     try:
         d = json.loads(_fetch("https://api.alternative.me/fng/?limit=3"))["data"]
-        return [{"value": int(x["value"]), "label": x["value_classification"]} for x in d]
-    except Exception:
-        return None
-
-
-def trending():
-    try:
-        d = json.loads(_fetch("https://api.coingecko.com/api/v3/search/trending"))["coins"]
-        return [c["item"]["symbol"] for c in d][:7]
+        return [{"value": int(x["value"]), "label": str(x["value_classification"])[:20]} for x in d]
     except Exception:
         return None

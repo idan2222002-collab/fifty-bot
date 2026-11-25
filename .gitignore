@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.tmp
+data/
+run.log
+scan.json
+state_*.json
+journal.jsonl
+actions*.jsonl
+ideas_proposed.jsonl
+HALT
+.save_now

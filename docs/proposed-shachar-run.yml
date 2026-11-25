@@ -1,0 +1,78 @@
+name: shachar-run
+# Always-on host for Shachar, free. Starts every 5h, runs ~5h35m, the next run queues behind it (no overlap).
+# Mode comes from the repo variable SHACHAR_MODE (default dry). Real orders need the secrets KRAKEN_KEY,
+# KRAKEN_SECRET and SHACHAR_LIVE=YES_IDAN_APPROVED, which stay unset until the owner says GO.
+# State lives on the `state` branch. Alerts arrive as issues in this repo (GitHub mails the owner).
+# Owner controls from the phone: open an issue titled HALT, FLATTEN or RESUME (see README).
+on:
+  schedule:
+    - cron: "0 */5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: shachar
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      # Pin both actions to a full commit SHA before going live (tags can be moved).
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Safety tests (the bot does not start if one fails)
+        run: python -m unittest test_shachar
+      - name: Run Shachar
+        env:
+          LLM_KEY: ${{ secrets.LLM_KEY }}
+          MODE: ${{ vars.SHACHAR_MODE || 'dry' }}
+          KRAKEN_KEY: ${{ secrets.KRAKEN_KEY }}
+          KRAKEN_SECRET: ${{ secrets.KRAKEN_SECRET }}
+          SHACHAR_LIVE: ${{ secrets.SHACHAR_LIVE }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHACHAR_DATA: data
+          PYTHONUNBUFFERED: "1"
+        run: |
+          git config --global user.name shachar
+          git config --global user.email shachar@users.noreply.github.com
+          git clone -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" /tmp/st
+          (cd /tmp/st && { git checkout -q state 2>/dev/null || { git checkout -q --orphan state && git rm -rfq . ; } ; } ; true)
+          FILES="state_dry.json state_live.json journal.jsonl actions_dry.jsonl actions_live.jsonl lessons.md ideas_proposed.jsonl HALT"
+          mkdir -p data
+          for f in $FILES; do [ -f /tmp/st/$f ] && cp /tmp/st/$f data/ || true; done
+          save() {
+            for f in $FILES; do [ -f data/$f ] && cp data/$f /tmp/st/ || true; done
+            [ -f data/HALT ] || rm -f /tmp/st/HALT
+            (cd /tmp/st && git add -A && (git diff --cached --quiet || git commit -q -m "state $(date -u +%FT%TZ)") \
+              && (git push -q origin state || (git pull -q --rebase origin state && git push -q origin state))) || echo "save failed"
+          }
+          END=$((SECONDS+20100))
+          RESTARTS=0
+          while [ $SECONDS -lt $END ]; do
+            python -u guard.py $MODE >> run.log 2>&1 &
+            PID=$!
+            T=0
+            while [ $SECONDS -lt $END ] && kill -0 $PID 2>/dev/null; do
+              sleep 10; T=$((T+10))
+              # push state right after every trade (the bot drops data/.save_now), otherwise every 10 minutes
+              if [ -f data/.save_now ] || [ $T -ge 600 ]; then rm -f data/.save_now; save; T=0; tail -n 2 run.log; fi
+            done
+            if [ $SECONDS -lt $END ]; then
+              RESTARTS=$((RESTARTS+1)); echo "guard died (restart $RESTARTS)"; tail -n 20 run.log; save
+              [ $RESTARTS -ge 5 ] && break
+              sleep 30
+            fi
+          done
+          # clean stop: the guard cancels a working maker order and finishes an order in flight before it exits
+          kill -TERM $PID 2>/dev/null || true
+          for i in $(seq 1 170); do kill -0 $PID 2>/dev/null || break; sleep 1; done
+          kill -KILL $PID 2>/dev/null || true
+          save
+          tail -n 15 run.log
