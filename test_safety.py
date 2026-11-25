@@ -121,3 +121,32 @@ bm = {"name": "t6", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees
 r = shachar.execute(FK(), {"bots": {"t6": bm}}, bm, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
 assert r.startswith("buy") and abs(bm["fees"] - 10 * 0.995 * 0.005 / 0.995) < 0.5 and bm["cash"] >= 0, (r, bm)
 print("MAKER / BACKTEST TESTS PASSED")
+
+# scanner warm start: the 1h window exists right after a (re)start instead of an hour later
+import time as _t2
+
+
+class FKS(FK):
+    def __init__(self, fail=False):
+        self.fail = fail
+    def ohlc_rows(self, pair, interval=1):
+        if self.fail:
+            raise OSError("network down")
+        now = int(_t2.time()) // 60 * 60
+        return [(now - 60 * (90 - i), 100.0 + i * 0.01) for i in range(90)]       # 90 finished one-minute candles
+    def tickers_fast(self):
+        return {"XBTUSDC": {"bid": 101.0, "ask": 101.05, "last": 101.0, "open": 100.0, "vol24": 1e6}}
+
+
+cold = scanner.Scanner(FKS(fail=True))
+assert cold.seed() == 0                                   # seeding is best effort: a failure never stops the guard
+cold.tick()
+assert "chg_1h_pct" not in cold.summary()["pairs"]["XBTUSDC"]             # before: blind until an hour has passed
+warm = scanner.Scanner(FKS())
+assert warm.seed() == 1
+warm.tick()
+row = warm.summary()["pairs"]["XBTUSDC"]
+assert all(k_ in row for k_ in ("chg_5m_pct", "chg_15m_pct", "chg_1h_pct")), row
+assert abs(row["chg_1h_pct"] - (101.0 / (100.0 + 0.01 * 30) - 1) * 100) < 0.05, row    # vs the close one hour ago
+assert len(warm.hist["XBTUSDC"]) == 76 and warm.hist["XBTUSDC"][0][0] < warm.hist["XBTUSDC"][-1][0]
+print("SCANNER WARM START TESTS PASSED")

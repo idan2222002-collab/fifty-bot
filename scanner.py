@@ -14,6 +14,21 @@ class Scanner:
         self.tk = {}
         self.t = 0.0
 
+    def seed(self, minutes=75):
+        """Fill the history with the last ~75 one-minute closes, so the 5m, 15m and 1h changes exist right after a
+        start. Without it the scanner is blind for an hour after every restart (the host restarts every ~5h40m), and
+        no setup that needs the 1h change can be seen in that hour. Best effort: a pair that fails is skipped.
+        Returns the number of pairs seeded."""
+        n = 0
+        for p in self.k.pairs():
+            try:
+                rows = self.k.ohlc_rows(p, 1)[-minutes:]
+                self.hist[p].extend((t + 60.0, c) for t, c in rows)      # a candle's close belongs to its end time
+                n += 1
+            except Exception:
+                pass
+        return n
+
     def tick(self):
         self.tk = self.k.tickers_fast()
         self.t = time.time()
