@@ -13,3 +13,6 @@ products, services, arbitrage. It proposes ideas in `ideas.md`; the code enforce
    (turnover cap and invoicing rules apply, see his accountant or Tax Authority).
 6. The bot never holds card numbers, passwords or API keys in this repo. Secrets live in a vault.
 7. Dies at zero. Child bots get profit only, never the parent's original stake.
+
+8. Activity rule: the bot must act. 24h without an action is an idle strike; 3 strikes is death. No hoarding the stake.
+9. No real money moves until the owner funds it and gives the go-ahead himself.
