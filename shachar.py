@@ -73,9 +73,13 @@ def execute(k, s, b, d, tk, mode, validate):
         vol = usdc * (1 - FEE) / tk[p]["ask"]
         if usdc < max(info["costmin"], 1) or vol < info["ordermin"]:
             return "refused: below Kraken minimum order (%.2f USDC, min volume %s)" % (usdc, info["ordermin"])
+        if usdc > b["cash"] * 0.99:
+            return "refused: would spend more than the account balance (spot only, never negative)"
         ok, why = policy.check(b, usdc, "trade", "kraken", d.get("reason", ""), side="buy")
     else:
         q = b["pos"].get(p, 0.0) * max(0.0, min(1.0, float(d.get("fraction", 1))))
+        if q > b["pos"].get(p, 0.0) + 1e-12:
+            return "refused: cannot sell more than held (no shorting)"
         if q < info["ordermin"]:
             return "refused: nothing to sell or below minimum volume"
         usdc, vol = q * tk[p]["bid"], q
