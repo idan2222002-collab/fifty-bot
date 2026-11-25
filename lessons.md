@@ -17,3 +17,5 @@
 - 2026-11-25 [shachar] Avoid trades where the expected price move is close to the fee cost; wait for a clear >3% momentum signal before committing capital.
 - 2026-11-25 [shachar] LTC shows a 3.76% 6h gain with acceptable liquidity; entering a modest position to capture move above fee threshold.
 - 2026-11-25 [shachar] capturing short‑term uptrend that exceeds fee cost
+- 2026-11-25 [shachar] Avoid trading when expected price move is close to or below the combined spread and fee cost; better to wait for a clearer setup than incur a loss.
+- 2026-11-25 [shachar] Avoid entering trades when expected move is close to or below fee+spread costs; wait for a clear >3% momentum with low spread before committing cash.
