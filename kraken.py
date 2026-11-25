@@ -9,6 +9,25 @@ LIVE_TOKEN = "YES_IDAN_APPROVED"
 UNIVERSE = ["XBTUSDC", "ETHUSDC", "SOLUSDC", "XRPUSDC", "ADAUSDC", "DOGEUSDC", "LINKUSDC", "LTCUSDC"]
 
 
+FORBIDDEN_KEYS = {"leverage", "margin", "close", "oflags", "trading_agreement", "starttm", "expiretm"}
+
+
+def assert_spot(data):
+    """Hard rule: spot only. Rejects any order that carries leverage/margin fields, any side other than
+    buy/sell, any type other than market or stop-loss, and any stop-loss that is not a SELL."""
+    bad = FORBIDDEN_KEYS & set(data)
+    if bad:
+        raise ValueError("refused: forbidden order field %s (spot only, no leverage/margin)" % sorted(bad))
+    if data.get("type") not in ("buy", "sell"):
+        raise ValueError("refused: bad side")
+    if data.get("ordertype") not in ("market", "stop-loss"):
+        raise ValueError("refused: bad order type")
+    if data.get("ordertype") == "stop-loss" and data.get("type") != "sell":
+        raise ValueError("refused: stop-loss must be a sell")
+    if float(data.get("volume", 0)) <= 0:
+        raise ValueError("refused: volume must be positive")
+
+
 def live_enabled():
     return os.environ.get("SHACHAR_LIVE") == LIVE_TOKEN
 
@@ -94,6 +113,7 @@ class Kraken:
         data = {"pair": pair, "type": side, "ordertype": "market", "volume": ("%." + str(dec) + "f") % volume}
         if userref:
             data["userref"] = str(userref)
+        assert_spot(data)
         if not live:
             data["validate"] = "true"
         res = self._priv("/0/private/AddOrder", data)
@@ -112,6 +132,7 @@ class Kraken:
         data = {"pair": pair, "type": "sell", "ordertype": "stop-loss",
                 "price": ("%." + str(info["pair_decimals"]) + "f") % stop_price,
                 "volume": ("%." + str(info["lot_decimals"]) + "f") % volume}
+        assert_spot(data)
         if not live:
             data["validate"] = "true"
         res = self._priv("/0/private/AddOrder", data)
