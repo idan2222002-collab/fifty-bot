@@ -68,3 +68,13 @@ ok, _, _ = shachar.reconcile(RK(30.0), {"bots": {"t3": b3}}, tk)
 assert not ok and (shachar.HERE / "HALT").exists()
 (shachar.HERE / "HALT").unlink()
 print("RECONCILE TESTS PASSED")
+
+b4 = {"name": "t4", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
+s4 = {"bots": {"t4": b4}}
+shachar.execute(FK(), s4, b4, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False) if False else None
+os.environ.pop("SHACHAR_HALT", None)
+r = shachar.execute(FK(), s4, b4, {"action": "buy", "pair": "XBTUSDC", "usdc": 10, "take_pct": 5}, tk, "dry", False)
+assert r.startswith("buy"), r
+r = shachar.execute(FK(), s4, b4, {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "brain"}, tk, "dry", False)
+assert "minimum hold" in r, r
+print("MIN HOLD TEST PASSED")
