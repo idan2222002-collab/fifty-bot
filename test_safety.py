@@ -262,3 +262,29 @@ small = {"name": "trs", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "
 shachar.execute(FK(), {"bots": {"trs": small}}, small, {"action": "buy", "pair": "XBTUSDC", "usdc": 5, "take_pct": 5, "stop_pct": 3}, tk, "dry", False)
 assert abs((40.0 - small["cash"]) - 5.0) < 0.1, small["cash"]                 # a request under the cap is not changed
 print("RISK SIZE CAP TESTS PASSED")
+
+# replay on highs and lows: wicks count, the stop wins a tie, a gap exits at the open, fees are the real 1.2%
+def _cd(c, **kw): return dict({"o": c, "h": c, "l": c, "c": c}, **kw)
+_rows = [_cd(100.0), _cd(100.0, h=106.0, l=96.0), _cd(100.0)]
+_n, _j = shachar.sim_trade(_rows, 0); assert abs(_n + 3.0) < 1e-9 and _j == 1                              # touched both levels: counted as the stop
+_rows[1] = _cd(94.0, o=94.0, h=95.0, l=93.0)
+assert abs(shachar.sim_trade(_rows, 0)[0] - (-6.0)) < 1e-9                   # opened under the stop: exit at the open
+_rows[1] = _cd(100.0, h=105.5, l=99.0)
+assert abs(shachar.sim_trade(_rows, 0, fee_pct=1.2)[0] - 3.8) < 1e-9         # take hit, fees taken off
+_rows[1] = _cd(100.0, h=101.0, l=99.0)
+_n, _j = shachar.sim_trade(_rows, 0, hold=1); assert abs(_n) < 1e-9 and _j == 1                       # neither level: exit at the close on time
+_up = [100 * (1.004 ** i) for i in range(300)]                               # steady climb: the trend setup wins
+_closes_only = shachar.backtest_setup(_up, "trend")
+assert _closes_only and _closes_only["win_pct"] == 100 and 3.5 < _closes_only["avg_net_pct"] <= 5 - 1.2, _closes_only   # 3.8 per take; the last trade ends with the data
+_wicky = [_cd(c, l=c * 0.96) for c in _up]                                   # same closes, but every hour dips 4% first
+_with_wicks = shachar.backtest_setup(_wicky, "trend")
+assert _with_wicks["win_pct"] == 0 and _with_wicks["avg_net_pct"] < -4, _with_wicks   # closes alone hid every stop-out
+assert shachar.backtest_setup(_up, "trend", fee_pct=1.6)["avg_net_pct"] < _closes_only["avg_net_pct"]
+
+
+class _KC:
+    def ohlc_candles(self, pair): return _wicky
+class _KO:
+    def ohlc_full(self, pair): return _up
+assert shachar.replay_rows(_KC(), "XBTUSDC") is _wicky and shachar.replay_rows(_KO(), "XBTUSDC") is _up
+print("REPLAY ON HIGHS AND LOWS TESTS PASSED")

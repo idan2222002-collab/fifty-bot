@@ -131,6 +131,12 @@ class Kraken:
         rows = [v for kk, v in r.items() if kk != "last"][0]
         return [(float(x[0]), float(x[4])) for x in rows[:-1]]
 
+    def ohlc_candles(self, pair, interval=60):
+        """Up to 720 candles as {o, h, l, c} (about 30 days of hourly candles), for the replay."""
+        r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
+        rows = [v for kk, v in r.items() if kk != "last"][0]
+        return [{"o": float(x[1]), "h": float(x[2]), "l": float(x[3]), "c": float(x[4])} for x in rows]
+
     def ohlc(self, pair, interval=60, n=48):
         r = _get("/0/public/OHLC", {"pair": pair, "interval": interval})
         rows = [v for k, v in r.items() if k != "last"][0][-n:]
