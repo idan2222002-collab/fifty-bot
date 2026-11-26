@@ -60,3 +60,4 @@
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves are possible, hold cash and existing positions to avoid fee‑driven losses.
 - 2026-11-26 [shachar] When the signal list is empty and market conditions offer no setup that comfortably exceeds fees, holding cash and existing positions preserves capital.
 - 2026-11-26 [shachar] Preserve capital when no high‑edge trade is available; idle time has no penalty
+- 2026-11-26 [shachar] When the only signal has a marginal expected gain and a negative backtest, hold cash instead of risking fees and drawdown.
