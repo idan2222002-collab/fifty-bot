@@ -4,18 +4,31 @@
   "shachar": {
    "name": "shachar",
    "alive": true,
-   "cash": 45.87,
+   "cash": 41.302141,
    "start": 45.87,
-   "pos": {},
+   "pos": {
+    "ETHUSDC": 0.00266372
+   },
    "parent": null,
    "children": [],
    "born": 1795690089.4753804,
-   "fees": 0.0,
-   "last_action": 1795690089.4753804,
+   "fees": 0.018199,
+   "last_action": 1795697163.1069012,
    "idle_strikes": 0,
-   "trades": 0,
-   "guards": {},
-   "last_brain": 1795694647.330215,
+   "trades": 1,
+   "guards": {
+    "ETHUSDC": {
+     "entry": 1708.0098508852282,
+     "stop": 1673.8496538675236,
+     "take": 1767.790195666211,
+     "high": 1708.0098508852282,
+     "stop_txid": "OOHK23-F3LVW-RYNQG2",
+     "stop_vol": 0.00266372,
+     "t": 1795697163.1068993,
+     "stop_px": 1673.8496538675236
+    }
+   },
+   "last_brain": 1795697157.3721828,
    "recent": [
     {
      "t": "2026-11-26 10:48",
@@ -28,6 +41,12 @@
      "action": "hold",
      "pair": null,
      "result": "no trade"
+    },
+    {
+     "t": "2026-11-26 12:46",
+     "action": "buy",
+     "pair": "ETHUSDC",
+     "result": "buy ETHUSDC 0.002664 @ ~1708.0099 (fee 0.018)"
     }
    ]
   }

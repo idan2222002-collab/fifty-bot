@@ -61,3 +61,4 @@
 - 2026-11-26 [shachar] When the signal list is empty and market conditions offer no setup that comfortably exceeds fees, holding cash and existing positions preserves capital.
 - 2026-11-26 [shachar] Preserve capital when no high‑edge trade is available; idle time has no penalty
 - 2026-11-26 [shachar] When the only signal has a marginal expected gain and a negative backtest, hold cash instead of risking fees and drawdown.
+- 2026-11-26 [shachar] Backtest shows net loss, but current setup offers ~3.3% expected move > fees and BTC is stable; using tight stop (2%) limits risk to <2% equity and respects 50% cash cap.

@@ -254,3 +254,7 @@
 {"event": "boot_sync", "usdc": 45.87, "positions": [], "stops": [], "start": 45.87, "t": "2026-11-26 12:40:45"}
 {"event": "reconcile", "ok": true, "kraken_equity": 47.82, "ledger_equity": 45.87, "bad": [], "t": "2026-11-26 12:40:47"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.87, "t": "2026-11-26 12:40:50"}
+{"event": "reconcile", "ok": true, "kraken_equity": 47.83, "ledger_equity": 45.87, "bad": [], "t": "2026-11-26 12:45:51"}
+{"bot": "shachar", "stop_order": "sell 0.00266 ETHUSDC @ stop loss 1673.85", "live": true, "t": "2026-11-26 12:46:03"}
+{"bot": "shachar", "decision": {"action": "buy", "pair": "ETHUSDC", "usdc": 22.9, "stop_pct": 2.0, "take_pct": 3.5, "reason": "trend", "lesson": "Backtest shows net loss, but current setup offers ~3.3% expected move > fees and BTC is stable; using tight stop (2%) limits risk to <2% equity and respects 50% cash cap.", "source": "llm"}, "result": "buy ETHUSDC 0.002664 @ ~1708.0099 (fee 0.018)", "equity": 45.85, "t": "2026-11-26 12:46:03"}
+{"event": "reconcile", "ok": true, "kraken_equity": 47.79, "ledger_equity": 45.84, "bad": [], "t": "2026-11-26 12:50:44"}
