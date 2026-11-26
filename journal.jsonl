@@ -409,3 +409,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 17:50:16"}
 {"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "No viable opportunities meet the fee gate, liquidity, and risk criteria; preserving capital is optimal.", "lesson": "When the opportunity list is empty or only marginal setups appear, idle time has no penalty. Hold cash and wait for a clear, fee\u2011positive signal.", "source": "llm"}, "result": "no trade", "equity": 45.72, "t": "2026-11-26 17:50:19"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 17:50:45"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 17:55:21"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.72, "t": "2026-11-26 17:55:23"}
