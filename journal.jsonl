@@ -197,3 +197,6 @@
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 48.11, "t": "2026-11-26 10:01:10"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 48.12, "t": "2026-11-26 10:06:14"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 48.15, "t": "2026-11-26 10:11:18"}
+{"event": "boot_sync", "usdc": 45.87, "positions": [], "stops": [], "t": "2026-11-26 10:48:09"}
+{"event": "reconcile", "ok": true, "kraken_equity": 47.81, "ledger_equity": 45.87, "bad": [], "t": "2026-11-26 10:48:11"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "opportunities list empty, no clear setup that exceeds fees, BTC not signaling strong move", "lesson": "Preserve capital when no high\u2011edge trade is available; idle time has no penalty", "source": "llm"}, "result": "no trade", "equity": 45.87, "t": "2026-11-26 10:48:14"}

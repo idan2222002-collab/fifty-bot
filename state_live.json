@@ -1,0 +1,30 @@
+{
+ "mode": "live",
+ "bots": {
+  "shachar": {
+   "name": "shachar",
+   "alive": true,
+   "cash": 45.87,
+   "start": 0.0,
+   "pos": {},
+   "parent": null,
+   "children": [],
+   "born": 1795690089.4753804,
+   "fees": 0.0,
+   "last_action": 1795690089.4753804,
+   "idle_strikes": 0,
+   "trades": 0,
+   "guards": {},
+   "last_brain": 1795690094.447842,
+   "recent": [
+    {
+     "t": "2026-11-26 10:48",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    }
+   ]
+  }
+ },
+ "log": []
+}
