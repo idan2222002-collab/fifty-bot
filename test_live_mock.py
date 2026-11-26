@@ -197,6 +197,30 @@ def holding():
     return k, ex, s, b
 
 
+# 9a. the host's stop needs two price reads in a row under the level: one bad print does not sell
+import guard as _guard
+def _at(px):
+    class _S: tk = {"XBTUSDC": dict(TK["XBTUSDC"], bid=px, ask=px + 0.1, last=px)}
+    return _S()
+_guard._under.clear()
+k, ex, s, b = holding()                                                    # entry 100, stop 97, Kraken stop armed
+assert _guard.protect(k, _at(96.0), "live", False) == [] and b["pos"]      # first read under the stop: wait
+assert _guard.protect(k, _at(100.0), "live", False) == [] and b["pos"]     # it was a bad print: the count starts over
+assert _guard.protect(k, _at(96.0), "live", False) == [] and b["pos"]
+acts = _guard.protect(k, _at(96.0), "live", False)                         # second read in a row: sell
+assert acts and acts[0][2].startswith("stop hit") and acts[0][3].startswith("sell") and not b["pos"], acts
+assert [o for o in ex.orders.values() if o["otype"] == "stop-loss"][0]["status"] == "canceled"
+_guard._under.clear()
+k, ex, s, b = holding()
+acts = _guard.protect(k, _at(105.5), "live", False)                        # take-profit is not delayed
+assert acts and acts[0][2].startswith("take-profit") and not b["pos"], acts
+_guard._under.clear()
+k, ex, s, b = holding()
+_guard.protect(k, _at(96.0), "live", False)
+assert [o for o in ex.orders.values() if o["otype"] == "stop-loss" and o["status"] == "open"]   # Kraken's own stop stays armed meanwhile
+_guard._under.clear()
+print("stop needs two reads OK")
+
 # 9b. Kraken refuses the maker entry (the price moved, the post-only bid would cross): a missed entry, NOT a HALT
 k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
 _lf = policy.logfile("live")
