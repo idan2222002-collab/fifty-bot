@@ -523,3 +523,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 44.72, "bad": [], "t": "2026-11-26 21:35:17"}
 {"bot": "shachar", "stop_order": "sell 0.06182 SOLUSDC @ stop loss 70.15", "live": true, "t": "2026-11-26 21:35:44"}
 {"bot": "shachar", "decision": {"action": "buy", "pair": "SOLUSDC", "usdc": 22.0, "stop_pct": 2.2, "take_pct": 3.5, "reason": "trend breakout with ~3% expected move, fees ~1.6%, stop 2.2% gives risk/reward >1.5, liquidity good, BTC stable", "lesson": "Backtest showed net loss but current market conditions (tight spread, solid volume, BTC stable) give a fee\u2011positive edge; risk limited to <2% equity", "source": "llm"}, "result": "buy SOLUSDC 0.061829 @ ~71.7300 (fee 0.018)", "equity": 44.7, "t": "2026-11-26 21:35:44"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.65, "ledger_equity": 44.69, "bad": [], "t": "2026-11-26 21:40:46"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.69, "t": "2026-11-26 21:40:48"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.66, "ledger_equity": 44.7, "bad": [], "t": "2026-11-26 21:42:49"}
