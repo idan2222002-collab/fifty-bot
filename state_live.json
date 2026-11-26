@@ -28,14 +28,8 @@
      "stop_px": 70.15194411899233
     }
    },
-   "last_brain": 1795731378.9560678,
+   "last_brain": 1795733813.2327757,
    "recent": [
-    {
-     "t": "2026-11-26 14:07",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-26 14:47",
      "action": "hold",
@@ -62,6 +56,12 @@
     },
     {
      "t": "2026-11-26 22:16",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-26 22:56",
      "action": "hold",
      "pair": null,
      "result": "no trade"

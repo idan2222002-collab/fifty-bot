@@ -561,3 +561,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.67, "bad": [], "t": "2026-11-26 22:51:45"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.67, "t": "2026-11-26 22:51:47"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.67, "bad": [], "t": "2026-11-26 22:52:49"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.59, "ledger_equity": 44.65, "bad": [], "t": "2026-11-26 22:56:49"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "usdc": null, "fraction": null, "stop_pct": null, "take_pct": null, "reason": "No fee\u2011positive opportunity; opportunities list empty; SOLUSDC position cannot be sold before 3\u202fh hold; waiting for a clear setup that meets take\u202f\u2265\u202f3\u202f% and stop/take ratio \u2265\u202f1.5.", "lesson": "Idle time has no penalty \u2013 preserve capital and wait for a setup that clearly exceeds fees and meets risk rules.", "source": "llm"}, "result": "no trade", "equity": 44.65, "t": "2026-11-26 22:56:53"}
