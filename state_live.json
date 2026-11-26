@@ -15,14 +15,8 @@
    "idle_strikes": 0,
    "trades": 2,
    "guards": {},
-   "last_brain": 1795715419.347899,
+   "last_brain": 1795726489.2456818,
    "recent": [
-    {
-     "t": "2026-11-26 12:04",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-26 12:46",
      "action": "buy",
@@ -49,6 +43,12 @@
     },
     {
      "t": "2026-11-26 17:50",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-26 20:54",
      "action": "hold",
      "pair": null,
      "result": "no trade"

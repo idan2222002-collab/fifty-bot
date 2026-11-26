@@ -500,3 +500,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 44.72, "bad": [], "t": "2026-11-26 20:49:42"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.72, "t": "2026-11-26 20:49:44"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 44.72, "bad": [], "t": "2026-11-26 20:52:48"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 44.72, "bad": [], "t": "2026-11-26 20:54:46"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "No clear opportunity meets the fee, volatility, and liquidity criteria; BTC is stable, USDC peg is fine, and all listed pairs are either in cooldown or flagged as not liquid.", "lesson": "When the opportunity list is empty or only marginal setups appear, idle time has no penalty\u2014preserve capital and wait for a fee\u2011positive signal.", "source": "llm"}, "result": "no trade", "equity": 44.72, "t": "2026-11-26 20:54:49"}
