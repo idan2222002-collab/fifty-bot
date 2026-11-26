@@ -52,3 +52,4 @@
 - 2026-11-26 [shachar] When the signal list is empty, hold and protect existing equity rather than chasing marginal moves.
 - 2026-11-26 [shachar] When backtest data shows consistent losses and the estimated move is marginal, avoid new entries and wait for a higher‑conviction setup.
 - 2026-11-26 [shachar] When no high‑conviction trade appears, hold cash and wait; preserve capital and avoid fee‑driven losses
+- 2026-11-26 [shachar] When backtest data shows consistent loss and expected gain is just above the fee threshold, preserve capital and wait for a stronger setup.
