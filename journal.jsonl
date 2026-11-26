@@ -318,3 +318,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 47.78, "ledger_equity": 45.82, "bad": [], "t": "2026-11-26 14:47:50"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "no high\u2011edge opportunity; opportunities list empty and BTC stable; cannot sell ETH yet (3\u2011hour hold rule)", "lesson": "preserve capital and wait for a clear setup that exceeds fees", "source": "llm"}, "result": "no trade", "equity": 45.82, "t": "2026-11-26 14:47:54"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.78, "ledger_equity": 45.83, "bad": [], "t": "2026-11-26 14:50:44"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.77, "ledger_equity": 45.82, "bad": [], "t": "2026-11-26 14:52:56"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.82, "t": "2026-11-26 14:52:58"}
