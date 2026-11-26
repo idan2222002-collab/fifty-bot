@@ -172,8 +172,14 @@ def boot_sync(k, s, tk, mode="live"):
             for p in list(gd):
                 if p not in b["pos"]:
                     gd.pop(p)
+            if b.get("start", 0) <= 0:
+                # The live state is first created with a stake of 0 (guard.main loads it with 0.0 before the real
+                # balance is known), so the brain was told "start 0, profit = all your money". The stake is what the
+                # account holds at the first live start. A stake that is already known is never changed.
+                b["start"] = equity(b, tk)
             save(mode, s)
-        jlog({"event": "boot_sync", "usdc": round(usdc, 2), "positions": list(b["pos"]), "stops": list(stops)})
+        jlog({"event": "boot_sync", "usdc": round(usdc, 2), "positions": list(b["pos"]), "stops": list(stops),
+              "start": round(b["start"], 2)})
         for p in list(b["pos"]):
             ensure_stop(k, b, p, mode, False)
         return True
