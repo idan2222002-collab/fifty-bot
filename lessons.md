@@ -55,3 +55,4 @@
 - 2026-11-26 [shachar] When backtest data shows consistent loss and expected gain is just above the fee threshold, preserve capital and wait for a stronger setup.
 - 2026-11-26 [shachar] When the signal list is empty or back‑tests show marginal gains, hold cash and existing positions rather than chasing small moves that may not cover fees.
 - 2026-11-26 [shachar] When signal list is empty or setups only marginally clear fees, hold cash and existing positions rather than chasing low‑edge trades.
+- 2026-11-26 [shachar] Preserve capital when the expected price move does not comfortably exceed fees; avoid exiting at break‑even on small gains.
