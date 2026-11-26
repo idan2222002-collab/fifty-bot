@@ -239,6 +239,33 @@ r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
 assert (shachar.HERE / "HALT").exists() and "HALT" in r, r                       # no answer at all still halts
 print("Kraken refusal is not a HALT OK")
 
+# 9c. replacing the stop: the old stop id is forgotten only when Kraken confirmed the old order is gone
+def _open_stops(ex):
+    return [t for t, o in ex.orders.items() if o["otype"] == "stop-loss" and o["status"] == "open"]
+k, ex, s, b = holding()
+g = b["guards"]["XBTUSDC"]; old = g["stop_txid"]
+g["stop"] = g["stop"] * 1.02                                               # the trailing stop rose: replace the order
+ex.cancel_fail = True                                                      # Kraken does not take the cancel
+shachar.ensure_stop(k, b, "XBTUSDC", "live", False)
+assert g["stop_txid"] == old and _open_stops(ex) == [old], g               # was: id dropped while the order still worked
+ex.cancel_fail = False
+g["stop_err_t"] = 0
+orig = ex.priv
+def cancel_pending(path, data):                                            # Kraken answers "ok" but the order is still open
+    if path.endswith("CancelOrder"):
+        return {"count": 1, "pending": True}
+    return orig(path, data)
+k._priv = cancel_pending
+shachar.ensure_stop(k, b, "XBTUSDC", "live", False)
+assert g["stop_txid"] == old and _open_stops(ex) == [old], g               # no second stop, the old one is still tracked
+k._priv = orig
+g["stop_err_t"] = 0
+shachar.ensure_stop(k, b, "XBTUSDC", "live", False)                        # now the cancel works: one stop, the new one
+new = g["stop_txid"]
+assert new and new != old and _open_stops(ex) == [new] and ex.orders[old]["status"] == "canceled", g
+assert abs(g["stop_px"] - g["stop"]) < 1e-9
+print("stop replaced only after the old one is gone OK")
+
 # 10. a market sell that executed is booked even when reading its status fails (was: "sell failed" + phantom position)
 SELL = {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "guard"}
 k, ex, s, b = holding()
