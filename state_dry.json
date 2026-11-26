@@ -30,7 +30,7 @@
     "LTCUSDC": 1795627430.4578347,
     "ETHUSDC": 1795629573.7510927
    },
-   "last_brain": 1795651572.295529,
+   "last_brain": 1795654001.5016506,
    "peak": 48.364904108304316,
    "recent": [
     {
@@ -47,6 +47,12 @@
     },
     {
      "t": "2026-11-26 00:06",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-26 00:46",
      "action": "hold",
      "pair": null,
      "result": "no trade"
