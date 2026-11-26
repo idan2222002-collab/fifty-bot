@@ -5,7 +5,7 @@
    "name": "shachar",
    "alive": true,
    "cash": 45.87,
-   "start": 0.0,
+   "start": 45.87,
    "pos": {},
    "parent": null,
    "children": [],
