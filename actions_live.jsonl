@@ -2,3 +2,5 @@
 {"t": 1795697163.106904, "day": "2026-11-26", "bot": "shachar", "amount": 4.5497, "side": "buy", "filled": true}
 {"t": 1795705634.82987, "day": "2026-11-26", "bot": "shachar", "amount": 4.4546, "category": "trade", "side": "sell", "payee": "kraken", "purpose": "guard: stop hit (1672.3200 <= 1673.8497)", "ok": true, "reason": null, "filled": false}
 {"t": 1795705635.2159538, "day": "2026-11-26", "bot": "shachar", "amount": 4.4532, "side": "sell", "filled": true}
+{"t": 1795728922.831183, "day": "2026-11-26", "bot": "shachar", "amount": 4.472, "category": "trade", "side": "buy", "payee": "kraken", "purpose": "trend breakout with ~3% expected move, fees ~1.6%, stop 2.2% gives risk/reward >1.5, liquidity good, BTC stable", "ok": true, "reason": null, "filled": false}
+{"t": 1795728944.0214286, "day": "2026-11-26", "bot": "shachar", "amount": 4.435, "side": "buy", "filled": true}
