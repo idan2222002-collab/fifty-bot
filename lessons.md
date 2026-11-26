@@ -44,3 +44,4 @@
 - 2026-11-25 [shachar] avoid trading without a strong edge; preserve cash and let the existing BTC position run until a valid signal appears
 - 2026-11-25 [shachar] Preserve capital when no edge is evident; only trade when expected move >1.6% round‑trip fee and stop/take ratios satisfy the rules.
 - 2026-11-25 [shachar] Do not enter trades where historical backtests show consistent loss even if short‑term momentum looks positive; wait for a setup with a stronger risk‑reward profile.
+- 2026-11-26 [shachar] preserve capital when edge is unclear; wait for a setup with expected gain >3% and proper risk‑reward
