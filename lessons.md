@@ -58,3 +58,4 @@
 - 2026-11-26 [shachar] Preserve capital when the expected price move does not comfortably exceed fees; avoid exiting at break‑even on small gains.
 - 2026-11-26 [shachar] preserve capital when signal list is empty and backtests show only marginal expected gains
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves are possible, hold cash and existing positions to avoid fee‑driven losses.
+- 2026-11-26 [shachar] When the signal list is empty and market conditions offer no setup that comfortably exceeds fees, holding cash and existing positions preserves capital.
