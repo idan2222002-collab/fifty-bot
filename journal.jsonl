@@ -543,3 +543,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.6, "ledger_equity": 44.66, "bad": [], "t": "2026-11-26 22:12:49"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.66, "bad": [], "t": "2026-11-26 22:16:15"}
 {"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "No fee\u2011positive opportunities; current position is within mandatory 3h hold window; preserving capital is optimal.", "lesson": "Idle time has no penalty \u2013 wait for a clear setup that exceeds fees before trading.", "source": "llm"}, "result": "no trade", "equity": 44.66, "t": "2026-11-26 22:16:18"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.67, "bad": [], "t": "2026-11-26 22:21:20"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.67, "t": "2026-11-26 22:21:23"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.67, "bad": [], "t": "2026-11-26 22:22:49"}
