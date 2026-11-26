@@ -509,12 +509,21 @@ def ensure_stop(k, b, p, mode, validate):
         need = old is None or abs(qty - g.get("stop_vol", 0)) > qty * 0.01 or stop >= g.get("stop_px", 0) * 1.01
     if not need:
         return
+    gone = not (old and live)        # True once the old stop is known not to be working on Kraken any more
     try:
         if old and live:
             k.cancel(old)
             q = k.query_order(old)
             if q["vol_exec"] > 0:
                 return           # it fired; sync_stops books it
+            if q["status"] not in ("canceled", "expired"):
+                # Kraken has not confirmed the cancel: the old stop still protects the position and still holds the
+                # coins, so a new one would be refused. Keep the old id (sync_stops must go on watching it) and retry.
+                with LOCK:
+                    g["stop_err_t"] = time.time()
+                jlog({"bot": b["name"], "stop_order_error": "old stop %s is still %s, not replaced" % (old, q["status"])})
+                return
+            gone = True
         so = k.stop_order(p, qty, stop)
         with LOCK:
             g["stop_txid"] = so["txid"] if live else None
@@ -523,7 +532,7 @@ def ensure_stop(k, b, p, mode, validate):
     except Exception as e:
         with LOCK:
             g["stop_err_t"] = time.time()
-            if old and live:
+            if old and live and gone:        # forget the old id only when Kraken confirmed it is gone
                 g["stop_txid"] = None
         jlog({"bot": b["name"], "stop_order_error": str(e)[:150]})
 
