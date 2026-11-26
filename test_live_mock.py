@@ -160,6 +160,26 @@ assert abs(b["cash"] - 30.0) < 1e-9 and abs(b["pos"]["XBTUSDC"] - 0.1) < 1e-9 an
 assert ex.orders["TXl"]["status"] == "canceled" and ex.orders["TXs"]["status"] == "open"
 print("restart mid-position OK")
 
+# 5b. first live start: the state is created with a stake of 0; boot_sync sets it to what the account really holds
+k, ex = mk(usdc=45.87)
+shachar._STATE.pop("live", None)
+_sf = shachar.sfile("live")
+if _sf.exists(): _sf.unlink()
+s = shachar.load("live", 0.0)                                              # exactly what guard.main does
+assert s["bots"]["shachar"]["start"] == 0.0
+assert shachar.boot_sync(k, s, TK, "live")
+b = s["bots"]["shachar"]
+assert abs(b["start"] - 45.87) < 1e-9 and abs(b["cash"] - 45.87) < 1e-9, b  # was: start 0.0, "profit" 45.87
+ex.bal["USDC"] = 44.0                                                      # a later start after a loss: the stake stays
+assert shachar.boot_sync(k, s, TK, "live") and abs(b["start"] - 45.87) < 1e-9 and abs(b["cash"] - 44.0) < 1e-9, b
+k, ex = mk(usdc=30.0, btc=0.1)                                             # first start with a coin already held
+s = {"bots": {"shachar": {"name": "shachar", "cash": 0.0, "start": 0.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0, "last_action": 0}}, "log": []}
+shachar._STATE["live"] = s
+assert shachar.boot_sync(k, s, TK, "live")
+b = s["bots"]["shachar"]
+assert abs(b["start"] - (30.0 + 0.1 * TK["XBTUSDC"]["bid"])) < 1e-6, b     # cash plus the adopted position
+print("stake set at first live start OK")
+
 # 6. timeout after AddOrder: the order exists but we got no answer -> found by userref and cancelled
 k, ex = mk(); s, b = bot(); ex.maker_fill = "none"; ex.timeout_after_add = True
 r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
