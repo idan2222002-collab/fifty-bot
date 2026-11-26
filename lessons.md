@@ -47,3 +47,4 @@
 - 2026-11-26 [shachar] preserve capital when edge is unclear; wait for a setup with expected gain >3% and proper risk‑reward
 - 2026-11-26 [shachar] Maintain discipline: only enter trades with >3% expected gain and proper stop/take ratios. When the signal list is empty, hold.
 - 2026-11-26 [shachar] When the signal list is empty, hold and wait for a setup that meets the fee gate and risk‑reward criteria.
+- 2026-11-26 [shachar] Avoid entering trades when backtest data indicates a consistent loss, even if short‑term momentum looks positive. Hold until a setup meets the >3% expected gain and positive risk‑reward criteria.
