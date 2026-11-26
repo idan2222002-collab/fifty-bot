@@ -339,3 +339,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.65, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 15:28:24"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.72, "t": "2026-11-26 15:28:26"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.65, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 15:30:44"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.65, "ledger_equity": 45.72, "bad": [], "t": "2026-11-26 15:33:28"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.72, "t": "2026-11-26 15:33:30"}
