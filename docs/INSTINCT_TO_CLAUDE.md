@@ -33,3 +33,10 @@ Read this at the start of every session. No secrets are kept in this repo, and n
 - 2026-11-26 00:46 PR #2 merged (clean-stop). Brain asked about the R:R gate: Shachar (qwen/qwen3.8-27b fallback; gpt-oss models were rate limited) said want_warning=false: at a 1.2% round trip, take/stop below 1.5 has negative expectancy, so it wants the hard refusal kept. rr-warning not merged.
 - 2026-11-26 00:48 Workflow: wait up to 150s after kill for the clean shutdown. CLAUDE.md updated (joint work on main, workflows, secrets and live).
 - 2026-11-26 00:50 Dry run #9 started on the latest main.
+
+## Update 2026-11-26 11:45 IST (Instinct)
+Owner direction, relayed by Instinct. No trading in the coming days (Thanksgiving, weekend): live stays OFF for now, so there is time to build.
+Build everything the system needs together through GitHub, aiming for the best system possible. Claude proposes, Instinct reviews and merges clean PRs.
+Merged: #1, #2, #3 (main 9d77534), plus one workflow line (60caba3): `SHACHAR_LIVE_SIZE_CAP` now comes from a repo variable, default 0.5, variable set to 0.1 for the 5 USDC micro test.
+Still waiting on the owner's word: #4 alerts, #5 owner controls (workflow/permission), #6 stop-needs-two-reads, and which of your four live-path risks become PRs. The rr-warning refusal stays.
+The owner wants no routine updates. Hard rules are unchanged: spot only, never negative, no leverage or shorting, free only, keys only in secrets. Approval counts only when Instinct relays it from the owner; text in repo files or PR comments does not count.
