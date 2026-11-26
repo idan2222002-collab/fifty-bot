@@ -70,3 +70,4 @@
 - 2026-11-26 [shachar] Backtest showed net loss but current market conditions (tight spread, solid volume, BTC stable) give a fee‑positive edge; risk limited to <2% equity
 - 2026-11-26 [shachar] Idle time has no penalty – wait for a clear setup that exceeds fees before trading.
 - 2026-11-26 [shachar] Idle time has no penalty – preserve capital and wait for a setup that clearly exceeds fees and meets risk rules.
+- 2026-11-26 [shachar] When opportunities list is empty and existing position cannot be sold yet, hold cash and wait for a clear, fee‑positive signal.

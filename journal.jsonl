@@ -581,3 +581,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.58, "ledger_equity": 44.65, "bad": [], "t": "2026-11-26 23:32:20"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.65, "t": "2026-11-26 23:32:22"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.58, "ledger_equity": 44.65, "bad": [], "t": "2026-11-26 23:32:49"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.58, "ledger_equity": 44.65, "bad": [], "t": "2026-11-26 23:37:24"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "usdc": null, "fraction": null, "stop_pct": null, "take_pct": null, "reason": "no clear fee\u2011positive opportunity; existing SOL position still within 3\u2011hour sell restriction; wait for better setup", "lesson": "When opportunities list is empty and existing position cannot be sold yet, hold cash and wait for a clear, fee\u2011positive signal.", "source": "llm"}, "result": "no trade", "equity": 44.65, "t": "2026-11-26 23:37:27"}
