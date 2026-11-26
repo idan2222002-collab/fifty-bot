@@ -65,3 +65,4 @@
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves exist, idle time has no penalty – hold cash and existing positions.
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves exist, idle time has no penalty and preserving capital is optimal.
 - 2026-11-26 [shachar] preserve capital and wait for a clear setup that exceeds fees
+- 2026-11-26 [shachar] When the opportunity list is empty or only marginal setups appear, idle time has no penalty. Hold cash and wait for a clear, fee‑positive signal.
