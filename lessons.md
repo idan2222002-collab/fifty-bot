@@ -64,3 +64,4 @@
 - 2026-11-26 [shachar] Backtest shows net loss, but current setup offers ~3.3% expected move > fees and BTC is stable; using tight stop (2%) limits risk to <2% equity and respects 50% cash cap.
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves exist, idle time has no penalty – hold cash and existing positions.
 - 2026-11-26 [shachar] When the signal list is empty or only marginal moves exist, idle time has no penalty and preserving capital is optimal.
+- 2026-11-26 [shachar] preserve capital and wait for a clear setup that exceeds fees
