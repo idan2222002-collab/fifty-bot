@@ -115,6 +115,15 @@ def real_holdings(bal):
     return qty.pop("USDC", 0.0), qty
 
 
+def sellable(k, p, q):
+    """True when a quantity of the pair's coin is at least Kraken's minimum order. Less than that is dust: Kraken
+    refuses any order for it, so it can be neither sold nor protected by a stop. An unknown pair counts as sellable."""
+    try:
+        return q >= k.pairs()[p]["ordermin"]
+    except Exception:
+        return True
+
+
 def reconcile(k, s, tk):
     """Live only: compare the real Kraken account with the ledger PER ASSET (USDC and every coin quantity).
     A mismatch over 3% (and over 1 USD) writes HALT (no new buys; guard exits still run). Returns (ok, real_equity, ledger_equity)."""
@@ -129,7 +138,7 @@ def reconcile(k, s, tk):
         l = sum(b["pos"].get(p, 0.0) for b in s["bots"].values())
         real += r * tk[p]["bid"]
         led_eq += l * tk[p]["bid"]
-        if abs(r - l) * tk[p]["bid"] > max(1.0, RECON_TOL * max(r, l) * tk[p]["bid"]):
+        if abs(r - l) * tk[p]["bid"] > max(1.0, RECON_TOL * max(r, l) * tk[p]["bid"]) and sellable(k, p, abs(r - l)):
             bad.append("%s kraken %.6f vs ledger %.6f" % (base, r, l))
     if abs(usdc - led_usdc) > max(0.5, RECON_TOL * max(led_eq, 1.0)):
         bad.append("USDC kraken %.2f vs ledger %.2f" % (usdc, led_usdc))
@@ -160,7 +169,7 @@ def boot_sync(k, s, tk, mode="live"):
             b["pos"] = {}
             for p in tk:
                 q = held.get(p[:-4], 0.0)
-                if q * tk[p]["bid"] >= 0.25:
+                if q * tk[p]["bid"] >= 0.25 and sellable(k, p, q):      # dust under Kraken's minimum is not a position
                     b["pos"][p] = q
                     px = tk[p]["bid"]
                     g = gd.get(p) or {"entry": px, "stop": px * 0.97, "take": px * 1.05, "high": px, "t": time.time()}
