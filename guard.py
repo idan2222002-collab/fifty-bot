@@ -21,6 +21,7 @@ def protect(k, sc, mode, validate):
     """One guard pass. Decides exits under LOCK, then executes them WITHOUT holding LOCK. Returns actions taken."""
     acts, todo = [], []
     tk = sc.tk
+    flatten = shachar.notify.owner_flatten()      # the owner opened a FLATTEN issue: sell everything
     with shachar.LOCK:
         s = shachar.load(mode, shachar.DRY_START)
         changed = False
@@ -45,7 +46,9 @@ def protect(k, sc, mode, validate):
                     if ns > g["stop"]:
                         g["stop"] = ns; changed = True
                 why = None
-                if px <= g["stop"]:
+                if flatten:
+                    why = "owner FLATTEN"
+                elif px <= g["stop"]:
                     why = "stop hit (%.4f <= %.4f)" % (px, g["stop"])
                 elif g.get("t") and time.time() - g["t"] > MAX_HOLD_H * 3600:
                     why = "time stop (held more than %dh)" % MAX_HOLD_H
@@ -62,6 +65,11 @@ def protect(k, sc, mode, validate):
                 if g is not None:
                     g["retry_t"] = time.time()
         shachar.jlog({"bot": b["name"], "guard_exit": why, "result": r})
+        if r.startswith("sell"):
+            shachar.alert("sold %s: %s" % (p, why.split(" (")[0]), "%s\nreason: %s" % (r, why), mode)
+        elif not r.startswith("validated"):
+            shachar.alert("exit FAILED on %s" % p, "%s\nreason: %s\nIf a Kraken stop is armed it still protects the position."
+                          % (r, why), mode)
         acts.append((b["name"], p, why, r)); changed = True
     if changed:
         shachar.save(mode, s)
@@ -82,6 +90,7 @@ def shutdown(mode, wait_s=120):
         shachar.save(mode)
     except Exception as e:
         print("final save failed", str(e)[:120])
+    shachar.notify.drain(8)                   # let queued alerts go out before the process ends
     return not shachar.INFLIGHT
 
 
@@ -109,6 +118,7 @@ def main(mode="dry", validate=False):
         shachar.boot_sync(k, shachar.load(mode, 0.0), sc.tk, mode)
     if mode != "live":
         shachar.PAPER_PENDING = True          # this loop watches paper entries, so they can fill honestly
+    shachar.notify.start_controls()               # owner's HALT / FLATTEN issues, polled in the background
     if os.environ.get("NO_BRAIN") != "1":
         threading.Thread(target=brain_loop, args=(sc, mode, validate, stop), daemon=True).start()
     n, errs, last_save = 0, 0, time.time()
@@ -136,6 +146,9 @@ def main(mode="dry", validate=False):
             print("tick error", str(e)[:120])
             if errs in (5, 60):
                 shachar.jlog({"event": "guard_tick_errors", "count": errs, "last": str(e)[:120]})
+            if errs == 60:
+                shachar.alert("guard is blind", "%d price reads in a row failed: %s\nKraken stop orders still protect open "
+                              "positions." % (errs, str(e)[:120]), mode, always=True)
         n += 1
         if max_ticks and n >= max_ticks:
             stop.set(); break
