@@ -1327,3 +1327,57 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 46.61, "bad": [], "t": "2026-11-27 15:05:25"}
 {"bot": "shachar", "guard_exit": "stop hit (0.0563 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:27"}
 {"bot": "shachar", "guard_exit": "stop hit (0.9303 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:31"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0563 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:39"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9328 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:43"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0562 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:51"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9319 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:05:55"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0563 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:03"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9328 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:07"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0563 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:15"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9321 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:19"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 15:06:22"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 15:06:22"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 46.61, "bad": [], "t": "2026-11-27 15:06:22"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 46.61, "t": "2026-11-27 15:06:25"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:27"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9322 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:31"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0563 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:39"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9327 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:43"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0565 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:51"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9339 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:06:55"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0565 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:03"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9339 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:07"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:15"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9322 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:19"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:27"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9325 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:31"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:39"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9332 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:43"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:51"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9341 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:07:55"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0565 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:03"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9333 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:07"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0565 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:15"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9351 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:19"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:27"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9340 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:31"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:39"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9325 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:43"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0564 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:51"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9331 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:08:55"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0566 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:03"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9349 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:07"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0566 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:15"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9358 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:19"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0566 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:27"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9351 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:31"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0566 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:39"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9354 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:43"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0566 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:51"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9350 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:09:55"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0565 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:03"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9357 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:07"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0567 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:15"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9369 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:19"}
+{"bot": "shachar", "guard_exit": "stop hit (0.0568 <= 0.0570)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:27"}
+{"bot": "shachar", "guard_exit": "stop hit (0.9382 <= 0.9456)", "result": "refused: nothing to sell or below minimum volume", "t": "2026-11-27 15:10:31"}
