@@ -318,3 +318,18 @@ for _fresh, _want in ((None, 100.0), (lambda: _newer, 98.0), (lambda: {}, 100.0)
 _brain5.decide, _news5.fear_greed = _rd, _rf
 shachar._STATE.pop("dry")
 print("FRESH PRICE FOR THE ORDER TESTS PASSED")
+
+# The brain is told the numbers the code really uses: the live size cap from the repo variable and the real round-trip fee
+import brain as _brain6, os as _os6
+_old6 = _os6.environ.get("SHACHAR_LIVE_SIZE_CAP")
+_os6.environ["SHACHAR_LIVE_SIZE_CAP"] = "0.1"
+assert "capped at 10% of your cash" in _brain6.system_text(), "the prompt must state the cap from SHACHAR_LIVE_SIZE_CAP"
+_os6.environ["SHACHAR_LIVE_SIZE_CAP"] = "0.25"
+assert "capped at 25% of your cash" in _brain6.system_text()
+_os6.environ.pop("SHACHAR_LIVE_SIZE_CAP")
+assert "capped at 50% of your cash" in _brain6.system_text()                     # the code's own default
+if _old6 is not None: _os6.environ["SHACHAR_LIVE_SIZE_CAP"] = _old6
+assert "__LIVE_CAP__" not in _brain6.system_text()
+assert ("about %.1f%%" % ((shachar.FEE + shachar.MAKER_FEE) * 100)) in _brain6.system_text(), "the prompt's round trip must match FEE + MAKER_FEE"
+assert "1.6%" not in _brain6.SYSTEM
+print("PROMPT NUMBERS MATCH THE CODE TESTS PASSED")
