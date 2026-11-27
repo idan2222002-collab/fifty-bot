@@ -18,10 +18,10 @@ SPAWN_AT, CHILD_STAKE, MIN_CHILD, MAX_CHILDREN = 2.0, 0.5, 6.0, 3
 DRY_START = 47.87
 LOCK = threading.RLock()
 INFLIGHT = set()
-LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.5"))   # first live: one buy <= 50% of cash. Idan can lift it.
-DRY_SIZE_CAP = 0.9
+LIVE_SIZE_CAP = float(os.environ.get("SHACHAR_LIVE_SIZE_CAP", "0.99"))   # owner lifted the cap: only never-above-cash binds
+DRY_SIZE_CAP = 0.99
 MIN_RR = 1.5              # take_pct / stop_pct must be at least this
-MAX_RISK_PCT = float(os.environ.get("SHACHAR_MAX_RISK_PCT", "2"))   # one stop-out (fees included) costs at most this % of equity
+MAX_RISK_PCT = float(os.environ.get("SHACHAR_MAX_RISK_PCT", "1000"))   # one stop-out (fees included) costs at most this % of equity
 PAPER_PENDING = False     # paper mode: True = a maker entry waits for the market to trade through it (guard.py turns
                           # it on, because only the always-on loop can watch the order). False = instant fill.
 
