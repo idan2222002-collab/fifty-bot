@@ -25,17 +25,11 @@
      "t": 1795764705.1133196,
      "stop_txid": null,
      "stop_vol": 0,
-     "stop_err_t": 1795776585.8549333
+     "stop_err_t": 1795776889.9710698
     }
    },
-   "last_brain": 1795774460.6248872,
+   "last_brain": 1795776894.2346203,
    "recent": [
-    {
-     "t": "2026-11-27 05:07",
-     "action": "buy",
-     "pair": "ETHUSDC",
-     "result": "maker entry not filled in time, cancelled, no trade (no chasing)"
-    },
     {
      "t": "2026-11-27 07:31",
      "action": "hold",
@@ -62,6 +56,12 @@
     },
     {
      "t": "2026-11-27 10:14",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 10:54",
      "action": "hold",
      "pair": null,
      "result": "no trade"
