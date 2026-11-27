@@ -747,3 +747,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.66, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:04:40"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.66, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:05:21"}
 {"bot": "shachar", "decision": {"action": "buy", "pair": "ETHUSDC", "usdc": 22.34, "stop_pct": 3, "take_pct": 5, "reason": "trend setup with est_move 4.8% > fees, low spread, solid volume, BTC not falling, extreme fear index suggests upside; risk limited to <2% equity", "lesson": "Negative backtest alone isn't a deal\u2011breaker; combine real\u2011time trend, liquidity and market sentiment to justify a small, well\u2011sized trade.", "source": "llm"}, "result": "maker entry not filled in time, cancelled, no trade (no chasing)", "equity": 44.68, "t": "2026-11-27 05:07:00"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:12:02"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 05:12:05"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:14:41"}
