@@ -865,3 +865,9 @@
 {"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 09:33:40"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 09:33:40"}
 {"bot": "shachar", "decision": {"action": "buy", "pair": "SOLUSDC", "usdc": 22.0, "stop_pct": 2.0, "take_pct": 3.0, "reason": "trend", "lesson": "Backtest shows slight loss, but current strong uptrend, low spread, solid volume and extreme-fear market suggest a short\u2011term rebound; risk limited to 2% stop (\u2248$0.44) within 2% equity loss cap.", "source": "llm"}, "result": "refused: halt flag is set (no new buys)", "equity": 45.69, "t": "2026-11-27 09:33:45"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 09:38:47"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.7, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 09:38:47"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 09:38:47"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 09:38:50"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 09:41:44"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 09:41:44"}
