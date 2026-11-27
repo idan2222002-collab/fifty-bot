@@ -29,7 +29,7 @@ jobs:
           KRAKEN_KEY: ${{ secrets.KRAKEN_KEY }}
           KRAKEN_SECRET: ${{ secrets.KRAKEN_SECRET }}
           SHACHAR_LIVE: ${{ secrets.SHACHAR_LIVE }}
-          SHACHAR_LIVE_SIZE_CAP: ${{ vars.SHACHAR_LIVE_SIZE_CAP || '0.5' }}
+          SHACHAR_LIVE_SIZE_CAP: '0.99'
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
