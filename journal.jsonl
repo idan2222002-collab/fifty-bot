@@ -627,3 +627,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.67, "bad": [], "t": "2026-11-27 01:00:25"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "no fee\u2011positive setup, SOLUSDC position is only modestly down and within time\u2011stop, market shows low volatility and BTC is stable; waiting for a clearer upside signal", "lesson": "Patience preserves capital; avoid reacting to small price moves when the trade still meets risk limits and no better opportunity is present", "source": "llm"}, "result": "no trade", "equity": 44.67, "t": "2026-11-27 01:00:29"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.67, "bad": [], "t": "2026-11-27 01:04:39"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.67, "bad": [], "t": "2026-11-27 01:05:31"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.67, "t": "2026-11-27 01:05:33"}
