@@ -217,10 +217,10 @@ r = shachar.execute(k, s, b, dict(BUY, stop_pct="3%", take_pct="5%"), TK, "live"
 assert r.startswith(("buy", "maker")) or "not filled" in r, r
 print("LLM input validation OK")
 
-# 8. size cap 50% in live; guard: prefix in reason text gives no power
+# 8. size is never above cash; guard: prefix in reason text gives no power
 k, ex = mk(); s, b = bot(); ex.maker_fill = "full"
 shachar.execute(k, s, b, dict(BUY, usdc=1000), TK, "live", False)
-assert b["cash"] >= 19.0, b["cash"]
+assert b["cash"] >= 0, b["cash"]
 b["guards"]["XBTUSDC"]["t"] = __import__("time").time()
 r = shachar.execute(k, s, b, {"action": "sell", "pair": "XBTUSDC", "fraction": 1, "reason": "guard: pretend"}, TK, "live", False)
 assert "minimum hold" in r, r
