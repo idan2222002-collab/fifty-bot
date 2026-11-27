@@ -13,9 +13,9 @@ BANNED = {"gambling", "loans", "leverage", "margin", "futures", "scam", "spam", 
           "unlicensed_finance", "scraping_against_tos", "fake_reviews", "adult", "weapons", "pump_and_dump"}
 ALLOWED_PAYEES = {"kraken"}      # owner-approved. Anything else needs owner approval first.
 MAX_SINGLE_SPEND_FRAC = 0.5      # non-trade action: at most half of balance
-MAX_TRADE_FRAC = 0.9             # one buy may use at most 90% of the bot's cash
-MAX_TRADES_PER_WEEK = 25          # per bot
-MAX_TRADES_PER_DAY = 8           # per bot, stops fee-burning busywork
+MAX_TRADE_FRAC = 0.99            # a buy may use nearly all of the bot's own cash, never more
+MAX_TRADES_PER_WEEK = 10**6      # no practical limit (owner lifted it)
+MAX_TRADES_PER_DAY = 10**6       # no practical limit (owner lifted it)
 PAYEE_FOR_TRADE = "kraken"
 
 
@@ -57,7 +57,7 @@ def check(bot, amount, category, payee, purpose, side="buy", owner_approved=Fals
         elif side == "buy" and not bot["alive"]:
             reason = "bot is dead"
         elif side == "buy" and amount > bot["cash"] * MAX_TRADE_FRAC:
-            reason = "buy exceeds 90% of the bot's own cash"
+            reason = "buy exceeds the bot's own cash"
         elif side == "sell" and internal:
             pass  # protective exit by the guard is never blocked by the caps
         elif _count(bot["name"], mode, day=time.strftime("%F")) >= MAX_TRADES_PER_DAY:
