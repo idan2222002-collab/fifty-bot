@@ -160,7 +160,7 @@ def boot_sync(k, s, tk, mode="live"):
             b["pos"] = {}
             for p in tk:
                 q = held.get(p[:-4], 0.0)
-                if q * tk[p]["bid"] >= 1.0:
+                if q * tk[p]["bid"] >= 0.25:
                     b["pos"][p] = q
                     px = tk[p]["bid"]
                     g = gd.get(p) or {"entry": px, "stop": px * 0.97, "take": px * 1.05, "high": px, "t": time.time()}
