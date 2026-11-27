@@ -15,6 +15,8 @@ MAX_HOLD_H = 48                            # time stop
 TICK = float(os.environ.get("TICK", "2"))
 RETRY_S = 10                               # wait after a failed exit before trying that pair again
 SAVE_EVERY_S = 300
+STOP_CONFIRM_READS = 2                     # the host's stop needs this many price reads in a row under the level
+_under = {}                                # (bot, pair) -> reads in a row under the stop
 
 
 def protect(k, sc, mode, validate):
@@ -54,6 +56,13 @@ def protect(k, sc, mode, validate):
                     why = "time stop (held more than %dh)" % MAX_HOLD_H
                 elif px >= g["take"]:
                     why = "take-profit hit (%.4f >= %.4f)" % (px, g["take"])
+                # One read under the stop is not enough: a single bad print from the ticker would otherwise sell at
+                # market, pay the taker fee and start the 6h cooldown. Two reads in a row (TICK apart) are required.
+                # The stop-loss order on Kraken is not affected and still fires on its own.
+                key = (b["name"], p)
+                _under[key] = _under.get(key, 0) + 1 if px <= g["stop"] else 0
+                if why and why.startswith("stop hit") and _under[key] < STOP_CONFIRM_READS:
+                    why = None
                 if why and time.time() - g.get("retry_t", 0) >= RETRY_S:
                     todo.append((b, p, why))
     for b, p, why in todo:
