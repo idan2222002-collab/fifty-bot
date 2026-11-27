@@ -765,3 +765,7 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:42:28"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 05:42:30"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 05:44:41"}
+{"event": "boot_sync", "usdc": 44.68, "positions": ["XRPUSDC"], "stops": [], "start": 45.87, "t": "2026-11-27 07:31:45"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 07:31:45"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 45.69, "bad": [], "t": "2026-11-27 07:31:47"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "No fee\u2011positive, high\u2011confidence setup on liquid pairs. ETHUSDC has tight spread but no clear breakout or trend, and required take_pct >=3% would not be justified. XRPUSDC is in the not_liquid list, so cannot be sold. Holding preserves capital.", "lesson": "Patience when markets show no clear edge protects the small stake and avoids unnecessary fees.", "source": "llm"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 07:31:51"}
