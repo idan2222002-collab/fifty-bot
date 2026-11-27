@@ -75,3 +75,4 @@
 - 2026-11-27 [shachar] Patience preserves capital; avoid reacting to small price moves when the trade still meets risk limits and no better opportunity is present
 - 2026-11-27 [shachar] Patience preserves capital; avoid selling at a small loss when the move does not cover fees and no better trade is available.
 - 2026-11-27 [shachar] Backtest_30d shows negative avg_net_pct; selling preserves capital and avoids further loss
+- 2026-11-27 [shachar] When recent backtests are negative, avoid the trade unless new market conditions provide a strong edge; patience preserves capital.

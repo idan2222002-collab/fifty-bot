@@ -15,14 +15,8 @@
    "idle_strikes": 0,
    "trades": 4,
    "guards": {},
-   "last_brain": 1795746097.1337261,
+   "last_brain": 1795748534.0409575,
    "recent": [
-    {
-     "t": "2026-11-26 22:56",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-26 23:37",
      "action": "hold",
@@ -52,6 +46,12 @@
      "action": "sell",
      "pair": "SOLUSDC",
      "result": "sell SOLUSDC 0.061829 @ ~72.0300 (fee 0.036)"
+    },
+    {
+     "t": "2026-11-27 03:02",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
     }
    ],
    "cool": {
