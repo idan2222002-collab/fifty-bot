@@ -78,3 +78,4 @@
 - 2026-11-27 [shachar] When recent backtests are negative, avoid the trade unless new market conditions provide a strong edge; patience preserves capital.
 - 2026-11-27 [shachar] Cooldown prevented a trade; wait for a clear, fee‑positive signal on a liquid pair before acting
 - 2026-11-27 [shachar] A small negative backtest does not automatically rule out a trade if present market signals (trend, low spread, volume, fear index) provide a clear edge; balance historical data with real‑time context.
+- 2026-11-27 [shachar] Negative backtest alone isn't a deal‑breaker; combine real‑time trend, liquidity and market sentiment to justify a small, well‑sized trade.
