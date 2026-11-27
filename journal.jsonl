@@ -687,3 +687,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.66, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:02:08"}
 {"bot": "shachar", "decision": {"action": "hold", "pair": null, "usdc": null, "fraction": null, "stop_pct": null, "take_pct": null, "reason": "No high\u2011confidence trade: ETHUSDC backtest shows negative net after fees and SOLUSDC is in cooldown; waiting for a clearer, fee\u2011positive setup.", "lesson": "When recent backtests are negative, avoid the trade unless new market conditions provide a strong edge; patience preserves capital.", "source": "llm"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 03:02:14"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:04:40"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:07:15"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 03:07:17"}
