@@ -1061,3 +1061,7 @@
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.68, "t": "2026-11-27 12:51:28"}
 {"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.68, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 12:51:45"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 12:51:45"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 12:56:30"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.68, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 12:56:30"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 12:56:30"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "No qualified opportunities (empty list), halt flag still active, and all tradable pairs are either in not_liquid or fail fee/size rules. Staying idle preserves capital.", "lesson": "When the system blocks new entries and no clear edge exists, the safest move is to hold and wait for a valid setup.", "source": "llm"}, "result": "no trade", "equity": 45.68, "t": "2026-11-27 12:56:34"}

@@ -87,3 +87,4 @@
 - 2026-11-27 [shachar] When a halt is active, stay idle and wait for it to clear; also respect the not_liquid list to avoid refused trades.
 - 2026-11-27 [shachar] When a halt is set and no qualified setups appear, the safest move is to stay idle and preserve capital.
 - 2026-11-27 [shachar] When the system blocks new entries and the only position is illiquid, the safest move is to stay idle and protect the small stake.
+- 2026-11-27 [shachar] When the system blocks new entries and no clear edge exists, the safest move is to hold and wait for a valid setup.
