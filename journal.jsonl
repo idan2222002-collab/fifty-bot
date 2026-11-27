@@ -607,3 +607,5 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.6, "ledger_equity": 44.66, "bad": [], "t": "2026-11-27 00:19:54"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "No clear fee\u2011positive opportunity; existing SOL position is within the mandatory 3\u2011hour hold period", "lesson": "Patience preserves capital; trade only when a setup clearly exceeds fees and meets risk rules", "source": "llm"}, "result": "no trade", "equity": 44.66, "t": "2026-11-27 00:19:57"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.6, "ledger_equity": 44.66, "bad": [], "t": "2026-11-27 00:24:39"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.61, "ledger_equity": 44.66, "bad": [], "t": "2026-11-27 00:24:59"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.66, "t": "2026-11-27 00:25:01"}
