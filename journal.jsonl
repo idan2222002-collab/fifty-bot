@@ -1095,3 +1095,8 @@
 {"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 14:25:40"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 46.68, "bad": [], "t": "2026-11-27 14:25:40"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 46.68, "t": "2026-11-27 14:25:43"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 14:30:45"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 14:30:45"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 46.67, "bad": [], "t": "2026-11-27 14:30:45"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 46.67, "t": "2026-11-27 14:30:48"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.65, "ledger_equity": 46.65, "bad": [], "t": "2026-11-27 14:35:25"}
