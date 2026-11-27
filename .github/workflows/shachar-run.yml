@@ -1,9 +1,11 @@
 name: shachar-run
-# Always-on host for Shachar. Starts every 5h, runs ~5h40m, the next run queues behind it (no overlap).
+# Always-on host for Shachar. A start is tried every 30 minutes and a run lasts ~5h40m. The concurrency group lets one run
+# wait behind the running one, so the next run starts the moment this one ends even when GitHub delays or drops schedule events.
+# Waiting runs replaced by a newer one show as cancelled: that is expected.
 # Mode comes from repo variable SHACHAR_MODE (default dry). Real orders need the SHACHAR_LIVE secret, which stays unset until Idan says GO. State is saved to the `state` branch.
 on:
   schedule:
-    - cron: "0 */5 * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
