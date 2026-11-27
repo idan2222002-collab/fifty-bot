@@ -25,17 +25,11 @@
      "t": 1795764705.1133196,
      "stop_txid": null,
      "stop_vol": 0,
-     "stop_err_t": 1795766835.786887
+     "stop_err_t": 1795767136.0034964
     }
    },
-   "last_brain": 1795764711.225356,
+   "last_brain": 1795767146.3114476,
    "recent": [
-    {
-     "t": "2026-11-27 02:21",
-     "action": "sell",
-     "pair": "SOLUSDC",
-     "result": "sell SOLUSDC 0.061829 @ ~72.0300 (fee 0.036)"
-    },
     {
      "t": "2026-11-27 03:02",
      "action": "hold",
@@ -62,6 +56,12 @@
     },
     {
      "t": "2026-11-27 07:31",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 08:12",
      "action": "hold",
      "pair": null,
      "result": "no trade"
