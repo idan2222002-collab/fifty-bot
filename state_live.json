@@ -28,14 +28,8 @@
      "stop_px": 70.15194411899233
     }
    },
-   "last_brain": 1795741229.550742,
+   "last_brain": 1795743661.027683,
    "recent": [
-    {
-     "t": "2026-11-26 21:35",
-     "action": "buy",
-     "pair": "SOLUSDC",
-     "result": "buy SOLUSDC 0.061829 @ ~71.7300 (fee 0.018)"
-    },
     {
      "t": "2026-11-26 22:16",
      "action": "hold",
@@ -62,6 +56,12 @@
     },
     {
      "t": "2026-11-27 01:00",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 01:41",
      "action": "hold",
      "pair": null,
      "result": "no trade"

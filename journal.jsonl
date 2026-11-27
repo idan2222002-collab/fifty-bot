@@ -644,3 +644,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 01:34:40"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 01:35:53"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 01:35:55"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.67, "bad": [], "t": "2026-11-27 01:40:57"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "No viable opportunities; existing SOLUSDC position is slightly down and not yet fee\u2011positive to sell. Waiting for a clear breakout or trend that exceeds the 1.6% round\u2011trip cost.", "lesson": "Patience preserves capital; avoid selling at a small loss when the move does not cover fees and no better trade is available.", "source": "llm"}, "result": "no trade", "equity": 44.67, "t": "2026-11-27 01:41:01"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.62, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 01:44:40"}

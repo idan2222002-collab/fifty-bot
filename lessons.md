@@ -73,3 +73,4 @@
 - 2026-11-26 [shachar] When opportunities list is empty and existing position cannot be sold yet, hold cash and wait for a clear, fee‑positive signal.
 - 2026-11-27 [shachar] Patience preserves capital; trade only when a setup clearly exceeds fees and meets risk rules
 - 2026-11-27 [shachar] Patience preserves capital; avoid reacting to small price moves when the trade still meets risk limits and no better opportunity is present
+- 2026-11-27 [shachar] Patience preserves capital; avoid selling at a small loss when the move does not cover fees and no better trade is available.
