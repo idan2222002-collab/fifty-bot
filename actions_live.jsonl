@@ -6,3 +6,4 @@
 {"t": 1795728944.0214286, "day": "2026-11-26", "bot": "shachar", "amount": 4.435, "side": "buy", "filled": true}
 {"t": 1795746097.1339748, "day": "2026-11-27", "bot": "shachar", "amount": 4.4541, "category": "trade", "side": "sell", "payee": "kraken", "purpose": "short", "ok": true, "reason": null, "filled": false}
 {"t": 1795746099.8679402, "day": "2026-11-27", "bot": "shachar", "amount": 4.4535, "side": "sell", "filled": true}
+{"t": 1795753399.0797725, "day": "2026-11-27", "bot": "shachar", "amount": 4.4685, "category": "trade", "side": "buy", "payee": "kraken", "purpose": "trend setup with estimated 4.2% move, BTC stable, low spread (0.012%), high 24h volume, extreme fear index suggests upside; backtest negative but only 9 samples, current conditions stronger", "ok": true, "reason": null, "filled": false}

@@ -15,14 +15,8 @@
    "idle_strikes": 0,
    "trades": 4,
    "guards": {},
-   "last_brain": 1795750967.6993113,
+   "last_brain": 1795753398.935667,
    "recent": [
-    {
-     "t": "2026-11-27 00:19",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-27 01:00",
      "action": "hold",
@@ -52,6 +46,12 @@
      "action": "hold",
      "pair": null,
      "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 04:24",
+     "action": "buy",
+     "pair": "ETHUSDC",
+     "result": "maker entry not filled in time, cancelled, no trade (no chasing)"
     }
    ],
    "cool": {

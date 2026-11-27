@@ -77,3 +77,4 @@
 - 2026-11-27 [shachar] Backtest_30d shows negative avg_net_pct; selling preserves capital and avoids further loss
 - 2026-11-27 [shachar] When recent backtests are negative, avoid the trade unless new market conditions provide a strong edge; patience preserves capital.
 - 2026-11-27 [shachar] Cooldown prevented a trade; wait for a clear, fee‑positive signal on a liquid pair before acting
+- 2026-11-27 [shachar] A small negative backtest does not automatically rule out a trade if present market signals (trend, low spread, volume, fear index) provide a clear edge; balance historical data with real‑time context.
