@@ -419,7 +419,7 @@ def _plan(k, b, d, tk, mode, internal, risk):
         if time.time() - b.get("cool", {}).get(p, 0) < COOLDOWN_H * 3600:
             raise Refuse("refused: %s is in cooldown after its last sell" % p)
         if take < MIN_TAKE_PCT:
-            raise Refuse("refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~1.6%%)" % MIN_TAKE_PCT)
+            raise Refuse("refused: fee gate, take-profit must be at least %.1f%% (round trip costs ~%.1f%%)" % (MIN_TAKE_PCT, (FEE + MAKER_FEE) * 100))
         if take / stop < MIN_RR:
             raise Refuse("refused: reward/risk %.2f below %.1f (take %.1f%% vs stop %.1f%%)" % (take / stop, MIN_RR, take, stop))
         lq, lwhy = liquid(p, tk)
