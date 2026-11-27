@@ -25,17 +25,11 @@
      "t": 1795764705.1133196,
      "stop_txid": null,
      "stop_vol": 0,
-     "stop_err_t": 1795774152.7788787
+     "stop_err_t": 1795774456.4985979
     }
    },
-   "last_brain": 1795772025.9612482,
+   "last_brain": 1795774460.6248872,
    "recent": [
-    {
-     "t": "2026-11-27 04:24",
-     "action": "buy",
-     "pair": "ETHUSDC",
-     "result": "maker entry not filled in time, cancelled, no trade (no chasing)"
-    },
     {
      "t": "2026-11-27 05:07",
      "action": "buy",
@@ -65,6 +59,12 @@
      "action": "buy",
      "pair": "SOLUSDC",
      "result": "refused: halt flag is set (no new buys)"
+    },
+    {
+     "t": "2026-11-27 10:14",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
     }
    ],
    "cool": {

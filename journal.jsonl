@@ -901,3 +901,7 @@
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 10:09:15"}
 {"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 10:11:44"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 10:11:44"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 10:14:16"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 10:14:17"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 10:14:17"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "No viable opportunities; opportunities list empty, halt flag blocks new buys, and current XRPUSDC position is in the non\u2011liquid list so cannot be sold. Waiting for a clear, fee\u2011positive setup.", "lesson": "When the market provides no edge and a halt flag is active, the safest move is to stay idle rather than force a trade that may incur fees or breach rules.", "source": "llm"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 10:14:20"}
