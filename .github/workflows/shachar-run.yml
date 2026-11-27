@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  issues: write      # notify.py opens an issue for a HALT, a fired stop or a guard problem; without it alerts stay in the journal only
 concurrency:
   group: shachar
   cancel-in-progress: false
