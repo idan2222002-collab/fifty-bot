@@ -799,3 +799,9 @@
 {"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 08:12:22"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 08:12:22"}
 {"bot": "shachar", "decision": {"action": "hold", "pair": null, "usdc": null, "fraction": null, "stop_pct": null, "take_pct": null, "reason": "No clear fee\u2011positive opportunity: opportunities list empty, all liquid pairs have high spread or are flagged non\u2011liquid, and selling XRPUSDC is blocked by not_liquid list. Holding preserves capital.", "lesson": "Patience when the market offers no edge protects the small stake and avoids unnecessary fees.", "source": "llm"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 08:12:26"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 08:17:28"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 08:17:28"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 08:17:28"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 08:17:30"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.7, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 08:21:44"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 08:21:44"}
