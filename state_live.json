@@ -7,6 +7,7 @@
    "cash": 44.684902,
    "start": 45.87,
    "pos": {
+    "XDGUSDC": 17.19408337,
     "XRPUSDC": 1.0273849
    },
    "parent": null,
@@ -25,17 +26,21 @@
      "t": 1795764705.1133196,
      "stop_txid": null,
      "stop_vol": 0,
-     "stop_err_t": 1795785104.3306987
+     "stop_err_t": 1795788926.7592366
+    },
+    "XDGUSDC": {
+     "entry": 0.05879,
+     "stop": 0.0570263,
+     "take": 0.06172950000000001,
+     "high": 0.05882,
+     "t": 1795788926.4043832,
+     "stop_txid": null,
+     "stop_vol": 0,
+     "stop_err_t": 1795788926.5803483
     }
    },
-   "last_brain": 1795784194.086345,
+   "last_brain": 1795788933.0582025,
    "recent": [
-    {
-     "t": "2026-11-27 09:33",
-     "action": "buy",
-     "pair": "SOLUSDC",
-     "result": "refused: halt flag is set (no new buys)"
-    },
     {
      "t": "2026-11-27 10:14",
      "action": "hold",
@@ -65,12 +70,19 @@
      "action": "hold",
      "pair": null,
      "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 14:15",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
     }
    ],
    "cool": {
     "ETHUSDC": 1795705635.2159457,
     "SOLUSDC": 1795746099.8679297
-   }
+   },
+   "peak": 46.6881775570754
   }
  },
  "log": []

@@ -1081,3 +1081,8 @@
 {"event": "reconcile", "ok": false, "kraken_equity": 46.69, "ledger_equity": 45.68, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 13:11:45"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 13:11:45"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.68, "t": "2026-11-27 13:11:46"}
+{"event": "boot_sync", "usdc": 44.68, "positions": ["XDGUSDC", "XRPUSDC"], "stops": [], "start": 45.87, "t": "2026-11-27 14:15:26"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 14:15:26"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 14:15:26"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 46.69, "bad": [], "t": "2026-11-27 14:15:28"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "halt flag active and no qualified opportunities; existing positions are in not_liquid list, cannot trade", "lesson": "When HALT is set and no liquid setups appear, the safest move is to stay idle and preserve capital", "source": "llm"}, "result": "no trade", "equity": 46.69, "t": "2026-11-27 14:15:33"}
