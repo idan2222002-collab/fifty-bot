@@ -704,3 +704,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:34:40"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:37:40"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 03:37:42"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:42:43"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "No viable opportunity; the only listed setup (SOLUSDC) is in cooldown and backtest is negative", "lesson": "Cooldown prevented a trade; wait for a clear, fee\u2011positive signal on a liquid pair before acting", "source": "llm"}, "result": "no trade", "equity": 44.68, "t": "2026-11-27 03:42:47"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.67, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 03:44:40"}
