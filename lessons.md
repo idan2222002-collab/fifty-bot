@@ -82,3 +82,4 @@
 - 2026-11-27 [shachar] Patience when markets show no clear edge protects the small stake and avoids unnecessary fees.
 - 2026-11-27 [shachar] Patience when the market offers no edge protects the small stake and avoids unnecessary fees.
 - 2026-11-27 [shachar] Negative backtests on trend setups in extreme fear often mean choppy markets; patience is key.
+- 2026-11-27 [shachar] Backtest shows slight loss, but current strong uptrend, low spread, solid volume and extreme-fear market suggest a short‑term rebound; risk limited to 2% stop (≈$0.44) within 2% equity loss cap.
