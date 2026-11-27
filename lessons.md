@@ -81,3 +81,4 @@
 - 2026-11-27 [shachar] Negative backtest alone isn't a deal‑breaker; combine real‑time trend, liquidity and market sentiment to justify a small, well‑sized trade.
 - 2026-11-27 [shachar] Patience when markets show no clear edge protects the small stake and avoids unnecessary fees.
 - 2026-11-27 [shachar] Patience when the market offers no edge protects the small stake and avoids unnecessary fees.
+- 2026-11-27 [shachar] Negative backtests on trend setups in extreme fear often mean choppy markets; patience is key.

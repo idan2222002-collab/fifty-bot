@@ -25,17 +25,11 @@
      "t": 1795764705.1133196,
      "stop_txid": null,
      "stop_vol": 0,
-     "stop_err_t": 1795769273.2159512
+     "stop_err_t": 1795769577.7831428
     }
    },
-   "last_brain": 1795767146.3114476,
+   "last_brain": 1795769588.7375965,
    "recent": [
-    {
-     "t": "2026-11-27 03:02",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-27 03:42",
      "action": "hold",
@@ -62,6 +56,12 @@
     },
     {
      "t": "2026-11-27 08:12",
+     "action": "hold",
+     "pair": null,
+     "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 08:53",
      "action": "hold",
      "pair": null,
      "result": "no trade"

@@ -828,3 +828,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": [], "t": "2026-11-27 08:47:53"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 08:47:55"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": [], "t": "2026-11-27 08:51:44"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 08:52:57"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 45.69, "bad": [], "t": "2026-11-27 08:52:57"}
+{"bot": "shachar", "decision": {"action": "hold", "pair": null, "reason": "SOLUSDC backtest is negative (-1.64% net, 33% win rate). No clear edge to justify fees. Holding cash.", "lesson": "Negative backtests on trend setups in extreme fear often mean choppy markets; patience is key.", "source": "llm:qwen/qwen3.8-27b"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 08:53:08"}
