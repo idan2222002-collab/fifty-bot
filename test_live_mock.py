@@ -180,6 +180,27 @@ b = s["bots"]["shachar"]
 assert abs(b["start"] - (30.0 + 0.1 * TK["XBTUSDC"]["bid"])) < 1e-6, b     # cash plus the adopted position
 print("stake set at first live start OK")
 
+# 5c. a coin under Kraken's minimum order (dust the owner bought by hand) is not a position and not a mismatch
+k, ex = mk(usdc=44.68, btc=0.02)
+k.info["XBTUSDC"]["ordermin"] = 0.05                                       # the coin held is under the minimum, yet worth 2 USDC
+assert 0.02 * TK["XBTUSDC"]["bid"] > 1.0
+s = {"bots": {"shachar": {"name": "shachar", "cash": 44.68, "start": 45.87, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0, "last_action": 0}}, "log": []}
+shachar._STATE["live"] = s
+_h = shachar.HERE / "HALT"
+if _h.exists(): _h.unlink()
+assert shachar.boot_sync(k, s, TK, "live")
+b = s["bots"]["shachar"]
+assert b["pos"] == {} and not b.get("guards"), b                           # was: adopted, then "volume minimum not met" every cycle
+assert not [o for o in ex.orders.values() if o["status"] == "open"], ex.orders
+ok, real, led = shachar.reconcile(k, s, TK)
+assert ok and not _h.exists(), (ok, real, led)                             # was: HALT "kraken 0.02 vs ledger 0"
+ex.bal["XXBT"] = 0.1                                                    # a real, sellable coin the ledger does not know: still a HALT
+ok, real, led = shachar.reconcile(k, s, TK)
+assert not ok and _h.exists()
+_h.unlink()
+ex.bal["XXBT"] = 0.0
+print("dust under the minimum order is ignored OK")
+
 # 6. timeout after AddOrder: the order exists but we got no answer -> found by userref and cancelled
 k, ex = mk(); s, b = bot(); ex.maker_fill = "none"; ex.timeout_after_add = True
 r = shachar.execute(k, s, b, dict(BUY), TK, "live", False)
