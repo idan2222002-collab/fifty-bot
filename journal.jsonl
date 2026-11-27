@@ -975,3 +975,9 @@
 {"event": "reconcile", "ok": false, "kraken_equity": 46.7, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 11:25:15"}
 {"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 11:25:15"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 11:25:17"}
+{"bot": "shachar", "stop_order_error": "kraken: ['EGeneral:Invalid arguments:volume minimum not met']", "t": "2026-11-27 11:30:16"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.7, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 11:30:19"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 11:30:19"}
+{"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 45.69, "t": "2026-11-27 11:30:21"}
+{"event": "reconcile", "ok": false, "kraken_equity": 46.7, "ledger_equity": 45.69, "bad": ["XDG kraken 17.194083 vs ledger 0.000000"], "t": "2026-11-27 11:31:44"}
+{"event": "halt", "why": "reconcile mismatch: XDG kraken 17.194083 vs ledger 0.000000", "t": "2026-11-27 11:31:44"}
