@@ -664,3 +664,6 @@
 {"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 44.72, "bad": [], "t": "2026-11-27 02:14:40"}
 {"event": "reconcile", "ok": true, "kraken_equity": 46.69, "ledger_equity": 44.72, "bad": [], "t": "2026-11-27 02:16:25"}
 {"bot": "shachar", "decision": {"action": "hold", "reason": "gate: no new setup, brain not called (free quota is 200k tokens/day)", "source": "gate"}, "result": "no trade", "equity": 44.72, "t": "2026-11-27 02:16:28"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.68, "ledger_equity": 44.72, "bad": [], "t": "2026-11-27 02:21:29"}
+{"bot": "shachar", "decision": {"action": "sell", "pair": "SOLUSDC", "fraction": 1.0, "reason": "short", "lesson": "Backtest_30d shows negative avg_net_pct; selling preserves capital and avoids further loss", "source": "llm:openai/gpt-oss-20b"}, "result": "sell SOLUSDC 0.061829 @ ~72.0300 (fee 0.036)", "equity": 44.68, "t": "2026-11-27 02:21:39"}
+{"event": "reconcile", "ok": true, "kraken_equity": 46.66, "ledger_equity": 44.68, "bad": [], "t": "2026-11-27 02:24:40"}

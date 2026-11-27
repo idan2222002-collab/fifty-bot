@@ -4,38 +4,19 @@
   "shachar": {
    "name": "shachar",
    "alive": true,
-   "cash": 40.267022,
+   "cash": 44.684901999999994,
    "start": 45.87,
-   "pos": {
-    "SOLUSDC": 0.06182852
-   },
+   "pos": {},
    "parent": null,
    "children": [],
    "born": 1795690089.4753804,
-   "fees": 0.07156499999999999,
-   "last_action": 1795728944.0214255,
+   "fees": 0.10719299999999998,
+   "last_action": 1795746099.8679366,
    "idle_strikes": 0,
-   "trades": 3,
-   "guards": {
-    "SOLUSDC": {
-     "entry": 71.7300042116486,
-     "stop": 70.15194411899233,
-     "take": 74.2405543590563,
-     "high": 72.37,
-     "stop_txid": "OHEUTF-MGVAV-UTU7E5",
-     "stop_vol": 0.06182852,
-     "t": 1795728944.0214236,
-     "stop_px": 70.15194411899233
-    }
-   },
-   "last_brain": 1795743661.027683,
+   "trades": 4,
+   "guards": {},
+   "last_brain": 1795746097.1337261,
    "recent": [
-    {
-     "t": "2026-11-26 22:16",
-     "action": "hold",
-     "pair": null,
-     "result": "no trade"
-    },
     {
      "t": "2026-11-26 22:56",
      "action": "hold",
@@ -65,10 +46,17 @@
      "action": "hold",
      "pair": null,
      "result": "no trade"
+    },
+    {
+     "t": "2026-11-27 02:21",
+     "action": "sell",
+     "pair": "SOLUSDC",
+     "result": "sell SOLUSDC 0.061829 @ ~72.0300 (fee 0.036)"
     }
    ],
    "cool": {
-    "ETHUSDC": 1795705635.2159457
+    "ETHUSDC": 1795705635.2159457,
+    "SOLUSDC": 1795746099.8679297
    }
   }
  },
