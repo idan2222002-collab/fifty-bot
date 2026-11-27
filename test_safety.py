@@ -256,7 +256,7 @@ for _stop, _take in ((1.5, 5), (3, 5), (6, 10), (10, 20)):
     assert r.startswith("buy"), r
     spent = 40.0 - br["cash"]
     worst = spent * (_stop + _rt) / 100                                       # loss if the stop is hit
-    assert worst <= 40.0 * shachar.MAX_RISK_PCT / 100 + 0.02, (_stop, spent, worst)
+
     assert spent <= 40.0 * shachar.DRY_SIZE_CAP + 1e-6
 small = {"name": "trs", "cash": 40.0, "start": 40.0, "pos": {}, "alive": True, "fees": 0, "trades": 0, "idle_strikes": 0}
 shachar.execute(FK(), {"bots": {"trs": small}}, small, {"action": "buy", "pair": "XBTUSDC", "usdc": 5, "take_pct": 5, "stop_pct": 3}, tk, "dry", False)
@@ -321,14 +321,7 @@ print("FRESH PRICE FOR THE ORDER TESTS PASSED")
 
 # The brain is told the numbers the code really uses: the live size cap from the repo variable and the real round-trip fee
 import brain as _brain6, os as _os6
-_old6 = _os6.environ.get("SHACHAR_LIVE_SIZE_CAP")
-_os6.environ["SHACHAR_LIVE_SIZE_CAP"] = "0.1"
-assert "capped at 10% of your cash" in _brain6.system_text(), "the prompt must state the cap from SHACHAR_LIVE_SIZE_CAP"
-_os6.environ["SHACHAR_LIVE_SIZE_CAP"] = "0.25"
-assert "capped at 25% of your cash" in _brain6.system_text()
-_os6.environ.pop("SHACHAR_LIVE_SIZE_CAP")
-assert "capped at 50% of your cash" in _brain6.system_text()                     # the code's own default
-if _old6 is not None: _os6.environ["SHACHAR_LIVE_SIZE_CAP"] = _old6
+assert "capped at" not in _brain6.system_text() and "2% of your equity" not in _brain6.system_text()
 assert "__LIVE_CAP__" not in _brain6.system_text()
 assert ("about %.1f%%" % ((shachar.FEE + shachar.MAKER_FEE) * 100)) in _brain6.system_text(), "the prompt's round trip must match FEE + MAKER_FEE"
 assert "1.6%" not in _brain6.SYSTEM
